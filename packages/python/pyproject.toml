@@ -8,7 +8,7 @@ version = "0.1.0"
 description = "Python SDK for Specification of QuantTide DevOps"
 authors = ["QuantTide Inc. <opensource@quanttide.com>"]
 readme = "README.md"
-packages = [{include = "quanttide_devops"}]
+packages = [{include = "quanttide_devops", from = "src"}]
 
 [tool.poetry.dependencies]
 python = "^3.9"
