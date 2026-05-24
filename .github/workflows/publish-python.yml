@@ -1,4 +1,4 @@
-name: pypi-publish
+name: publish-python
 on:
   # https://docs.github.com/cn/actions/using-workflows/events-that-trigger-workflows#release
   release:

@@ -1,4 +1,4 @@
-name: crates-io-publish
+name: publish-rust
 on:
   release:
     types: [published]
