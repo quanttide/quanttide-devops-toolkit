@@ -1,5 +1,21 @@
 # CHANGELOG
 
+## [0.1.3] - 2026-07-03
+
+### Added
+
+- `source::git` 模块：Git tag 读取、scope 过滤、版本一致性检查
+- `GitSourceError` 类型化错误处理
+- `VersionStatus` 版本一致性检查结果
+- semver 排序（修复字符串排序 `v10 < v9` 问题）
+- 43 单元测试覆盖 tag 读取、scope 过滤、semver 排序
+
+### Changed
+
+- 依赖：新增 `git2 = "0.19"`（必选）
+- `contract/source.rs` 保持单文件，`source/` 以顶层模块存在
+- `lib.rs` 新增 `pub mod source`
+
 ## [0.1.2] - 2026-07-02
 
 ### Changed

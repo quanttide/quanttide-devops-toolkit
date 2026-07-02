@@ -5,9 +5,9 @@
 ## [0.1.3] — 当前
 
 ### Added
-- [ ] `source/git.rs`：Git tag 读取、scope 过滤、版本一致性检查（设计文档就绪）
-- [ ] `GitSourceError` 类型化错误处理
-- [ ] semver 排序替代字符串排序
+- [x] `source/git.rs`：Git tag 读取、scope 过滤、版本一致性检查
+- [x] `GitSourceError` 类型化错误处理
+- [x] semver 排序替代字符串排序（43 测试全部通过）
 
 ## [0.1.2] — 已发布
 
