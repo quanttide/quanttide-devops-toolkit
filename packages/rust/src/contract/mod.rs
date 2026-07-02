@@ -1,16 +1,16 @@
+pub mod core;
 /// 契约模型四维架构：Stages / Platforms / Sources / Scopes。
 ///
 /// 参考：<https://github.com/quanttide/quanttide-essay-of-devops/blob/main/contract/index.md>
 pub mod error;
-pub mod model;
 pub mod platform;
 pub mod scope;
 pub mod source;
 pub mod stage;
 pub mod version;
 
+pub use core::{Contract, detect_language_by_files};
 pub use error::ContractError;
-pub use model::{Contract, detect_language_by_files};
 pub use platform::{Pipeline, Platform, Registry, SourceControl};
 pub use scope::{BuildTool, Language, Scope};
 pub use source::{Source, SourceType, VersionSource};
