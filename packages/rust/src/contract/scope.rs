@@ -1,0 +1,197 @@
+use serde::de::{Deserializer, MapAccess, Visitor};
+use serde::{Deserialize, Serialize};
+use std::fmt;
+
+use super::platform::Registry;
+use super::stage::StageRelease;
+
+// ── Scopes（上下文维度）───────────────────────────────────────────────
+
+/// 作用域（上下文维度）。
+///
+/// 通过 scope 为不同组件挂载不同的 Stage、Platform、Source 组合。
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub struct Scope {
+    pub name: String,
+    pub dir: String,
+    #[serde(default)]
+    pub language: Language,
+    #[serde(default)]
+    pub framework: String,
+    #[serde(default)]
+    pub build_tool: BuildTool,
+    #[serde(default)]
+    pub registry: Registry,
+    #[serde(default)]
+    pub release: StageRelease,
+    #[serde(default)]
+    pub test_threshold: Option<f64>,
+    #[serde(default)]
+    pub ci_workflow: Option<String>,
+}
+
+/// 编程语言。
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Language {
+    Rust,
+    Python,
+    Go,
+    Dart,
+    #[serde(rename = "typescript")]
+    TypeScript,
+    Unknown(String),
+}
+
+impl Default for Language {
+    fn default() -> Self {
+        Self::Unknown("auto".into())
+    }
+}
+
+impl Language {
+    /// 返回语言的显示名称。
+    pub fn as_str(&self) -> &str {
+        match self {
+            Self::Rust => "rust",
+            Self::Python => "python",
+            Self::Go => "go",
+            Self::Dart => "dart",
+            Self::TypeScript => "typescript",
+            Self::Unknown(s) => s,
+        }
+    }
+}
+
+/// 构建工具。
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum BuildTool {
+    Cargo,
+    Uv,
+    Go,
+    Flutter,
+    Npm,
+    Unknown(String),
+}
+
+impl Default for BuildTool {
+    fn default() -> Self {
+        Self::Unknown("auto".into())
+    }
+}
+
+impl BuildTool {
+    /// 返回构建工具的显示名称。
+    pub fn as_str(&self) -> &str {
+        match self {
+            Self::Cargo => "cargo",
+            Self::Uv => "uv",
+            Self::Go => "go",
+            Self::Flutter => "flutter",
+            Self::Npm => "npm",
+            Self::Unknown(s) => s,
+        }
+    }
+}
+
+// ── 自定义反序列化（Language / BuildTool）────────────────────────────
+
+impl<'de> Deserialize<'de> for Language {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        Ok(match s.as_str() {
+            "rust" => Language::Rust,
+            "python" => Language::Python,
+            "go" => Language::Go,
+            "dart" => Language::Dart,
+            "typescript" | "ts" | "node" => Language::TypeScript,
+            other => Language::Unknown(other.to_string()),
+        })
+    }
+}
+
+impl<'de> Deserialize<'de> for BuildTool {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        Ok(match s.as_str() {
+            "cargo" => BuildTool::Cargo,
+            "uv" | "poetry" | "pdm" => BuildTool::Uv,
+            "go" => BuildTool::Go,
+            "flutter" => BuildTool::Flutter,
+            "npm" | "pnpm" | "yarn" | "bun" => BuildTool::Npm,
+            other => BuildTool::Unknown(other.to_string()),
+        })
+    }
+}
+
+// ── 自定义反序列化（scopes: map → Vec<Scope>）────────────────────────
+
+/// YAML 中的 scope 原始配置（map 格式的中间表示）。
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "snake_case")]
+struct ScopeConfig {
+    dir: String,
+    #[serde(default)]
+    language: Option<Language>,
+    #[serde(default)]
+    framework: Option<String>,
+    #[serde(default)]
+    build_tool: Option<BuildTool>,
+    #[serde(default)]
+    registry: Option<Registry>,
+    #[serde(default)]
+    release: Option<StageRelease>,
+    #[serde(default)]
+    test_threshold: Option<f64>,
+    #[serde(default)]
+    ci_workflow: Option<String>,
+}
+
+pub fn deserialize_scopes<'de, D>(deserializer: D) -> Result<Vec<Scope>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    /// 访问器：将 `{ name: { dir, ... } }` 转为 `[Scope, ...]`。
+    struct ScopesVisitor;
+
+    impl<'de> Visitor<'de> for ScopesVisitor {
+        type Value = Vec<Scope>;
+
+        fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
+            f.write_str("作用域映射")
+        }
+
+        fn visit_map<M>(self, mut access: M) -> Result<Self::Value, M::Error>
+        where
+            M: MapAccess<'de>,
+        {
+            let mut scopes = Vec::new();
+            while let Some((name, config)) = access.next_entry::<String, ScopeConfig>()? {
+                scopes.push(Scope {
+                    name,
+                    dir: config.dir,
+                    language: config.language.unwrap_or(Language::Unknown("auto".into())),
+                    framework: config.framework.unwrap_or_default(),
+                    build_tool: config
+                        .build_tool
+                        .unwrap_or(BuildTool::Unknown("auto".into())),
+                    registry: config.registry.unwrap_or(Registry::None),
+                    release: config.release.unwrap_or_default(),
+                    test_threshold: config.test_threshold,
+                    ci_workflow: config.ci_workflow,
+                });
+            }
+            Ok(scopes)
+        }
+    }
+
+    deserializer.deserialize_map(ScopesVisitor)
+}
