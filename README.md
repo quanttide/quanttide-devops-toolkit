@@ -7,3 +7,4 @@ QuantTide DevOps Toolkit — Monorepo
 | Package | Language | Path |
 |---------|----------|------|
 | quanttide-devops | Python | [packages/python/](./packages/python/) |
+| quanttide-devops | Rust   | [packages/rust/](./packages/rust/) |

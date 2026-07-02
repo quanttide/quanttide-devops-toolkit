@@ -1,1 +1,1 @@
-pub mod release;
+pub mod contract;
