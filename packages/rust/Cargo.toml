@@ -10,6 +10,7 @@ repository = "https://github.com/quanttide/quanttide-devops-toolkit"
 [dependencies]
 serde = { version = "1", features = ["derive"] }
 serde_yaml = "0.9"
+git2 = { version = "0.19", features = ["vendored-libgit2"] }
 clap = { version = "4", features = ["derive"], optional = true }
 
 [features]
