@@ -2,6 +2,12 @@
 
 > 格式：Keep a Changelog + checkbox 任务清单。正序排列（近期版本在上）。
 
+## [0.1.4] — 待实施
+
+### Added
+- [ ] `source/changelog.rs`：CHANGELOG 解析、release notes 提取、版本存在性校验
+- [ ] 依赖 `parse-changelog`（taiki-e，274k 下载，只读轻量）
+
 ## [0.1.3] — 当前
 
 ### Added
