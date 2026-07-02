@@ -3,6 +3,7 @@
 /// 参考：<https://github.com/quanttide/quanttide-essay-of-devops/blob/main/contract/index.md>
 pub mod error;
 pub mod model;
+pub mod version;
 
 pub use error::ContractError;
 pub use model::{
@@ -10,6 +11,7 @@ pub use model::{
     SourceType, Stage, StageBuild, StageRelease, StageTest, VersionSource,
     detect_language_by_files,
 };
+pub use version::{normalize_version, read_all_config_versions, validate_version};
 
 use std::path::Path;
 

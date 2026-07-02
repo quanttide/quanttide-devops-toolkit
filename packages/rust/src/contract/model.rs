@@ -133,6 +133,7 @@ impl Default for Platform {
 
 /// 源代码管理平台。
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "clap", derive(clap::ValueEnum))]
 #[serde(rename_all = "snake_case")]
 pub enum SourceControl {
     #[default]
@@ -143,6 +144,7 @@ pub enum SourceControl {
 
 /// Pipeline 平台。
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "clap", derive(clap::ValueEnum))]
 #[serde(rename_all = "snake_case")]
 pub enum Pipeline {
     #[default]
@@ -157,6 +159,7 @@ pub enum Pipeline {
 ///
 /// 既可用于全局 `Platforms.artifact_registry`，也可用于 scope 级别覆盖。
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "clap", derive(clap::ValueEnum))]
 #[serde(rename_all = "snake_case")]
 pub enum Registry {
     Crates,
@@ -171,6 +174,20 @@ pub enum Registry {
     #[default]
     #[serde(other)]
     None,
+}
+
+impl fmt::Display for Registry {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Crates => write!(f, "crates.io"),
+            Self::PyPI => write!(f, "PyPI"),
+            Self::PubDev => write!(f, "pub.dev"),
+            Self::Npm => write!(f, "npm"),
+            Self::GitHubReleases => write!(f, "GitHub Releases"),
+            Self::Docker => write!(f, "Docker"),
+            Self::None => write!(f, "(none)"),
+        }
+    }
 }
 
 // ── Sources（事实源维度）──────────────────────────────────────────────
@@ -216,6 +233,7 @@ impl Default for VersionSource {
 
 /// 版本号读取来源。
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "clap", derive(clap::ValueEnum))]
 #[serde(rename_all = "snake_case")]
 pub enum SourceType {
     Cargo,
@@ -228,6 +246,23 @@ pub enum SourceType {
     /// 自动检测。
     #[default]
     Auto,
+}
+
+impl SourceType {
+    /// 根据目录下的文件自动检测版本源类型。
+    pub fn detect(dir: &Path) -> Self {
+        if dir.join("Cargo.toml").exists() {
+            Self::Cargo
+        } else if dir.join("pyproject.toml").exists() {
+            Self::Pyproject
+        } else if dir.join("pubspec.yaml").exists() {
+            Self::Pubspec
+        } else if dir.join("package.json").exists() {
+            Self::PackageJson
+        } else {
+            Self::TagOnly
+        }
+    }
 }
 
 // ── Scopes（上下文维度）───────────────────────────────────────────────
@@ -275,6 +310,20 @@ impl Default for Language {
     }
 }
 
+impl Language {
+    /// 返回语言的显示名称。
+    pub fn as_str(&self) -> &str {
+        match self {
+            Self::Rust => "rust",
+            Self::Python => "python",
+            Self::Go => "go",
+            Self::Dart => "dart",
+            Self::TypeScript => "typescript",
+            Self::Unknown(s) => s,
+        }
+    }
+}
+
 /// 构建工具。
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -290,6 +339,20 @@ pub enum BuildTool {
 impl Default for BuildTool {
     fn default() -> Self {
         Self::Unknown("auto".into())
+    }
+}
+
+impl BuildTool {
+    /// 返回构建工具的显示名称。
+    pub fn as_str(&self) -> &str {
+        match self {
+            Self::Cargo => "cargo",
+            Self::Uv => "uv",
+            Self::Go => "go",
+            Self::Flutter => "flutter",
+            Self::Npm => "npm",
+            Self::Unknown(s) => s,
+        }
     }
 }
 
@@ -430,6 +493,29 @@ impl Contract {
             Language::Unknown(_) => detect_language_by_files(scope_dir),
             lang => lang.clone(),
         }
+    }
+
+    /// 验算契约：检查 scope 配置是否合法。
+    ///
+    /// 返回所有问题的描述列表，空表示合法。
+    ///
+    /// ```
+    /// use std::path::Path;
+    /// use quanttide_devops::contract::Contract;
+    ///
+    /// let c = Contract::default();
+    /// let errors = c.validate(Path::new("/tmp/nonexistent"));
+    /// assert!(errors.is_empty()); // 空契约→无 scope 可检查
+    /// ```
+    pub fn validate(&self, repo_path: &Path) -> Vec<String> {
+        let mut errors = Vec::new();
+        for scope in &self.scopes {
+            let dir = repo_path.join(&scope.dir);
+            if !dir.exists() {
+                errors.push(format!("scope '{}' 目录不存在: {}", scope.name, scope.dir));
+            }
+        }
+        errors
     }
 }
 
