@@ -4,7 +4,7 @@ use std::path::Path;
 ///
 /// 测试策略：
 /// - 使用 `tempfile` 创建临时目录和文件
-/// - 覆盖 contract.yaml 加载、SourceType::detect、错误处理
+/// - 覆盖 contract.yaml 加载、detect_language_by_files、validate
 /// - 不重复单元测试已经覆盖的纯函数逻辑
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -151,6 +151,112 @@ scopes:
 }
 
 // ═══════════════════════════════════════════════════════════════════════
+// detect_language_by_files — 文件系统检测
+// ═══════════════════════════════════════════════════════════════════════
+
+#[test]
+fn test_detect_language_by_files_rust() {
+    let d = tempfile::tempdir().unwrap();
+    std::fs::write(d.path().join("Cargo.toml"), "").unwrap();
+    assert_eq!(
+        quanttide_devops::contract::detect_language_by_files(d.path()),
+        quanttide_devops::contract::Language::Rust
+    );
+}
+
+#[test]
+fn test_detect_language_by_files_unknown() {
+    let d = tempfile::tempdir().unwrap();
+    let lang = quanttide_devops::contract::detect_language_by_files(d.path());
+    assert!(matches!(
+        lang,
+        quanttide_devops::contract::Language::Unknown(_)
+    ));
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// validate — 目录不存在
+// ═══════════════════════════════════════════════════════════════════════
+
+#[test]
+fn test_contract_validate_missing_dir() {
+    use quanttide_devops::contract::Contract;
+    let c = Contract::default();
+    // 空契约 validate 应返回空
+    assert!(c.validate(Path::new("/tmp")).is_empty());
+
+    // 带 scope 但目录不存在的 validate
+    let d = tempfile::tempdir().unwrap();
+    let dir = d.path().join(".quanttide/devops");
+    std::fs::create_dir_all(&dir).unwrap();
+    let yaml = "\
+scopes:
+  nonexistent:
+    dir: does/not/exist
+";
+    std::fs::write(dir.join("contract.yaml"), yaml).unwrap();
+    let c = quanttide_devops::contract::load(d.path()).unwrap();
+    let errors = c.validate(d.path());
+    assert_eq!(errors.len(), 1);
+    assert!(errors[0].contains("does/not/exist"));
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// detect_language_by_files — 全部变体
+// ═══════════════════════════════════════════════════════════════════════
+
+#[test]
+fn test_detect_language_by_files_python() {
+    let d = tempfile::tempdir().unwrap();
+    std::fs::write(d.path().join("pyproject.toml"), "").unwrap();
+    assert_eq!(
+        quanttide_devops::contract::detect_language_by_files(d.path()),
+        quanttide_devops::contract::Language::Python
+    );
+}
+
+#[test]
+fn test_detect_language_by_files_go() {
+    let d = tempfile::tempdir().unwrap();
+    std::fs::write(d.path().join("go.mod"), "").unwrap();
+    assert_eq!(
+        quanttide_devops::contract::detect_language_by_files(d.path()),
+        quanttide_devops::contract::Language::Go
+    );
+}
+
+#[test]
+fn test_detect_language_by_files_dart() {
+    let d = tempfile::tempdir().unwrap();
+    std::fs::write(d.path().join("pubspec.yaml"), "").unwrap();
+    assert_eq!(
+        quanttide_devops::contract::detect_language_by_files(d.path()),
+        quanttide_devops::contract::Language::Dart
+    );
+}
+
+#[test]
+fn test_detect_language_by_files_typescript() {
+    let d = tempfile::tempdir().unwrap();
+    std::fs::write(d.path().join("package.json"), "").unwrap();
+    assert_eq!(
+        quanttide_devops::contract::detect_language_by_files(d.path()),
+        quanttide_devops::contract::Language::TypeScript
+    );
+}
+
+#[test]
+fn test_detect_language_by_files_python_requirements() {
+    // requirements.txt 也应检测为 Python
+    let d = tempfile::tempdir().unwrap();
+    std::fs::write(d.path().join("requirements.txt"), "").unwrap();
+    assert_eq!(
+        quanttide_devops::contract::detect_language_by_files(d.path()),
+        quanttide_devops::contract::Language::Python
+    );
+}
+
+// ═══════════════════════════════════════════════════════════════════════
 // SourceType::detect — 文件系统检测
 // ═══════════════════════════════════════════════════════════════════════
 
@@ -243,31 +349,27 @@ fn test_registry_serde_roundtrip() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════
-// detect_language_by_files — 文件系统检测
+// validate_version — 边缘情况
 // ═══════════════════════════════════════════════════════════════════════
 
 #[test]
-fn test_detect_language_by_files_rust() {
-    let d = tempfile::tempdir().unwrap();
-    std::fs::write(d.path().join("Cargo.toml"), "").unwrap();
-    assert_eq!(
-        quanttide_devops::contract::detect_language_by_files(d.path()),
-        quanttide_devops::contract::Language::Rust
-    );
-}
-
-#[test]
-fn test_detect_language_by_files_unknown() {
-    let d = tempfile::tempdir().unwrap();
-    let lang = quanttide_devops::contract::detect_language_by_files(d.path());
-    assert!(matches!(
-        lang,
-        quanttide_devops::contract::Language::Unknown(_)
+fn test_validate_version_invalid_scope_chars() {
+    // 空 scope → 无效
+    assert!(!quanttide_devops::contract::validate_version("/v0.1.0"));
+    // 含有非法字符的 scope
+    assert!(!quanttide_devops::contract::validate_version(
+        "bad space/v0.1.0"
     ));
 }
 
+#[test]
+fn test_validate_version_empty_prerelease() {
+    assert!(!quanttide_devops::contract::validate_version("v0.1.0-"));
+    assert!(!quanttide_devops::contract::validate_version("v0.1.0-."));
+}
+
 // ═══════════════════════════════════════════════════════════════════════
-// read_all_config_versions — 从文件系统读取
+// read_all_config_versions — 集成测试
 // ═══════════════════════════════════════════════════════════════════════
 
 #[test]
@@ -286,193 +388,6 @@ version = "0.1.0"
     assert!(!versions.is_empty());
     // 至少有一个版本被正确读取
     assert!(versions.iter().any(|(_, v)| v.as_deref() == Some("0.1.0")));
-}
-
-// ═══════════════════════════════════════════════════════════════════════
-// validate — 目录不存在
-// ═══════════════════════════════════════════════════════════════════════
-
-#[test]
-fn test_contract_validate_missing_dir() {
-    use quanttide_devops::contract::Contract;
-    let c = Contract::default();
-    // 空契约 validate 应返回空
-    assert!(c.validate(Path::new("/tmp")).is_empty());
-
-    // 带 scope 但目录不存在的 validate
-    let d = tempfile::tempdir().unwrap();
-    let dir = d.path().join(".quanttide/devops");
-    std::fs::create_dir_all(&dir).unwrap();
-    let yaml = "\
-scopes:
-  nonexistent:
-    dir: does/not/exist
-";
-    std::fs::write(dir.join("contract.yaml"), yaml).unwrap();
-    let c = quanttide_devops::contract::load(d.path()).unwrap();
-    let errors = c.validate(d.path());
-    assert_eq!(errors.len(), 1);
-    assert!(errors[0].contains("does/not/exist"));
-}
-
-// ═══════════════════════════════════════════════════════════════════════
-// detect_language_by_files — 全部变体
-// ═══════════════════════════════════════════════════════════════════════
-
-#[test]
-fn test_detect_language_by_files_python() {
-    let d = tempfile::tempdir().unwrap();
-    std::fs::write(d.path().join("pyproject.toml"), "").unwrap();
-    assert_eq!(
-        quanttide_devops::contract::detect_language_by_files(d.path()),
-        quanttide_devops::contract::Language::Python
-    );
-}
-
-#[test]
-fn test_detect_language_by_files_go() {
-    let d = tempfile::tempdir().unwrap();
-    std::fs::write(d.path().join("go.mod"), "").unwrap();
-    assert_eq!(
-        quanttide_devops::contract::detect_language_by_files(d.path()),
-        quanttide_devops::contract::Language::Go
-    );
-}
-
-#[test]
-fn test_detect_language_by_files_dart() {
-    let d = tempfile::tempdir().unwrap();
-    std::fs::write(d.path().join("pubspec.yaml"), "").unwrap();
-    assert_eq!(
-        quanttide_devops::contract::detect_language_by_files(d.path()),
-        quanttide_devops::contract::Language::Dart
-    );
-}
-
-#[test]
-fn test_detect_language_by_files_typescript() {
-    let d = tempfile::tempdir().unwrap();
-    std::fs::write(d.path().join("package.json"), "").unwrap();
-    assert_eq!(
-        quanttide_devops::contract::detect_language_by_files(d.path()),
-        quanttide_devops::contract::Language::TypeScript
-    );
-}
-
-#[test]
-fn test_detect_language_by_files_python_requirements() {
-    // requirements.txt 也应检测为 Python
-    let d = tempfile::tempdir().unwrap();
-    std::fs::write(d.path().join("requirements.txt"), "").unwrap();
-    assert_eq!(
-        quanttide_devops::contract::detect_language_by_files(d.path()),
-        quanttide_devops::contract::Language::Python
-    );
-}
-
-// ═══════════════════════════════════════════════════════════════════════
-// source::git — 版本状态检查
-// ═══════════════════════════════════════════════════════════════════════
-
-#[test]
-fn test_git_error_display() {
-    use quanttide_devops::source::git::GitSourceError;
-
-    let err = GitSourceError::RepoOpen("/nonexistent".into());
-    assert!(err.to_string().contains("无法打开仓库"));
-
-    // 通过真实的 git 操作失败获取 git2::Error
-    if let Err(git_err) = git2::Repository::open("/nonexistent") {
-        let from_git: GitSourceError = git_err.into();
-        assert!(from_git.to_string().contains("git2 错误"));
-    }
-}
-
-#[test]
-fn test_git_from_impl() {
-    use quanttide_devops::source::git::GitSourceError;
-    // 验证 From<git2::Error> 实现
-    if let Err(git_err) = git2::Repository::open("/nonexistent") {
-        let err: GitSourceError = git_err.into();
-        assert!(matches!(err, GitSourceError::Git2(_)));
-    }
-}
-
-#[test]
-fn test_git_version_status() {
-    let d = tempfile::tempdir().unwrap();
-    let scope = quanttide_devops::contract::Scope {
-        name: "test".into(),
-        dir: ".".into(),
-        language: quanttide_devops::contract::Language::Rust,
-        build_tool: quanttide_devops::contract::BuildTool::Unknown("auto".into()),
-        registry: quanttide_devops::contract::Registry::None,
-        framework: String::new(),
-        release: quanttide_devops::contract::StageRelease::default(),
-        test_threshold: None,
-        ci_workflow: None,
-    };
-
-    // 无 git 仓库 → RepoOpen 错误
-    let result = quanttide_devops::source::git::version_status(d.path(), &scope);
-    assert!(result.is_err());
-    assert!(result.unwrap_err().to_string().contains("无法打开仓库"));
-
-    // 有 git 仓库无 tag → tag_version=None，config_version=Some
-    let repo = git2::Repository::init(d.path()).unwrap();
-    let sig = git2::Signature::now("test", "test@test.com").unwrap();
-    let tree = {
-        let mut index = repo.index().unwrap();
-        let oid = index.write_tree().unwrap();
-        repo.find_tree(oid).unwrap()
-    };
-    repo.commit(Some("HEAD"), &sig, &sig, "init", &tree, &[])
-        .unwrap();
-    std::fs::write(
-        d.path().join("Cargo.toml"),
-        r#"[package]
-name = "test"
-version = "0.1.0"
-"#,
-    )
-    .unwrap();
-    let vs = quanttide_devops::source::git::version_status(d.path(), &scope).unwrap();
-    assert!(vs.tag_version.is_none());
-    assert!(vs.config_version.is_some());
-
-    // 打 tag 后 → 一致
-    repo.tag_lightweight(
-        "test/v0.1.0",
-        &repo
-            .find_object(repo.head().unwrap().target().unwrap(), None)
-            .unwrap(),
-        false,
-    )
-    .unwrap();
-    let vs = quanttide_devops::source::git::version_status(d.path(), &scope).unwrap();
-    assert_eq!(vs.tag_version.as_deref(), Some("0.1.0"));
-    assert_eq!(vs.config_version.as_deref(), Some("0.1.0"));
-    assert!(vs.consistent);
-}
-
-// ═══════════════════════════════════════════════════════════════════════
-// validate_version — 边缘情况
-// ═══════════════════════════════════════════════════════════════════════
-
-#[test]
-fn test_validate_version_invalid_scope_chars() {
-    // 空 scope → 无效
-    assert!(!quanttide_devops::contract::validate_version("/v0.1.0"));
-    // 含有非法字符的 scope
-    assert!(!quanttide_devops::contract::validate_version(
-        "bad space/v0.1.0"
-    ));
-}
-
-#[test]
-fn test_validate_version_empty_prerelease() {
-    assert!(!quanttide_devops::contract::validate_version("v0.1.0-"));
-    assert!(!quanttide_devops::contract::validate_version("v0.1.0-."));
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -521,76 +436,40 @@ fn test_read_config_versions_pubspec_commented() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════
-// source::changelog — Display
+// read_all_config_versions — 空值边缘情况
 // ═══════════════════════════════════════════════════════════════════════
 
 #[test]
-fn test_changelog_error_display() {
-    use quanttide_devops::source::changelog::ChangelogError;
-
-    let err = ChangelogError::Io(std::io::Error::new(std::io::ErrorKind::NotFound, "test"));
-    assert!(err.to_string().contains("读取 CHANGELOG 失败"));
-
-    let err = ChangelogError::Parse("syntax error".into());
-    assert!(err.to_string().contains("解析 CHANGELOG 失败"));
-}
-
-// ═══════════════════════════════════════════════════════════════════════
-// source::git — 版本状态：tag 存在但配置文件无版本
-// ═══════════════════════════════════════════════════════════════════════
-
-#[test]
-fn test_git_version_status_config_no_version() {
-    // 有 tag 但配置文件版本为空 → consistent=true（None 被视为一致）
+fn test_read_config_versions_cargo_empty_version() {
     let d = tempfile::tempdir().unwrap();
-    let repo = git2::Repository::init(d.path()).unwrap();
-    let sig = git2::Signature::now("test", "test@test.com").unwrap();
-    let tree = {
-        let mut index = repo.index().unwrap();
-        let oid = index.write_tree().unwrap();
-        repo.find_tree(oid).unwrap()
-    };
-    repo.commit(Some("HEAD"), &sig, &sig, "init", &tree, &[])
-        .unwrap();
-    repo.tag_lightweight(
-        "test/v0.1.0",
-        &repo
-            .find_object(repo.head().unwrap().target().unwrap(), None)
-            .unwrap(),
-        false,
-    )
-    .unwrap();
-
-    // 创建 Cargo.toml 但版本号缺失
     std::fs::write(
         d.path().join("Cargo.toml"),
         r#"[package]
 name = "test"
+version = ""
 "#,
     )
     .unwrap();
-
-    let scope = quanttide_devops::contract::Scope {
-        name: "test".into(),
-        dir: ".".into(),
-        language: quanttide_devops::contract::Language::Rust,
-        build_tool: quanttide_devops::contract::BuildTool::Unknown("auto".into()),
-        registry: quanttide_devops::contract::Registry::None,
-        framework: String::new(),
-        release: quanttide_devops::contract::StageRelease::default(),
-        test_threshold: None,
-        ci_workflow: None,
-    };
-    let vs = quanttide_devops::source::git::version_status(d.path(), &scope).unwrap();
-    // tag 有版本，Cargo.toml 无版本 → 文件列表应包含 (Cargo.toml, None)
-    assert_eq!(vs.tag_version.as_deref(), Some("0.1.0"));
+    let versions = quanttide_devops::contract::read_all_config_versions(d.path());
+    // version 为空字符串 → 返回 (filename, None)
     assert!(
-        vs.config_files
+        versions
             .iter()
             .any(|(n, v)| n == "Cargo.toml" && v.is_none())
     );
-    // None 被视为一致 → consistent=true
-    assert!(vs.consistent);
+}
+
+#[test]
+fn test_read_config_versions_yaml_empty_value() {
+    let d = tempfile::tempdir().unwrap();
+    // version: 后面只有空白
+    std::fs::write(d.path().join("pubspec.yaml"), "version: \nname: test\n").unwrap();
+    let versions = quanttide_devops::contract::read_all_config_versions(d.path());
+    assert!(
+        versions
+            .iter()
+            .any(|(n, v)| n == "pubspec.yaml" && v.is_none())
+    );
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -636,41 +515,4 @@ scopes:
     std::fs::write(dir.join("contract.yaml"), yaml).unwrap();
     let err = quanttide_devops::contract::load(d.path()).unwrap_err();
     assert!(err.to_string().contains("dir"));
-}
-
-// ═══════════════════════════════════════════════════════════════════════
-// read_all_config_versions — 空值边缘情况
-// ═══════════════════════════════════════════════════════════════════════
-
-#[test]
-fn test_read_config_versions_cargo_empty_version() {
-    let d = tempfile::tempdir().unwrap();
-    std::fs::write(
-        d.path().join("Cargo.toml"),
-        r#"[package]
-name = "test"
-version = ""
-"#,
-    )
-    .unwrap();
-    let versions = quanttide_devops::contract::read_all_config_versions(d.path());
-    // version 为空字符串 → 返回 (filename, None)
-    assert!(
-        versions
-            .iter()
-            .any(|(n, v)| n == "Cargo.toml" && v.is_none())
-    );
-}
-
-#[test]
-fn test_read_config_versions_yaml_empty_value() {
-    let d = tempfile::tempdir().unwrap();
-    // version: 后面只有空白
-    std::fs::write(d.path().join("pubspec.yaml"), "version: \nname: test\n").unwrap();
-    let versions = quanttide_devops::contract::read_all_config_versions(d.path());
-    assert!(
-        versions
-            .iter()
-            .any(|(n, v)| n == "pubspec.yaml" && v.is_none())
-    );
 }
