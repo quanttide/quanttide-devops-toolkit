@@ -25,11 +25,14 @@ jobs:
         run: cargo install cargo-llvm-cov --locked
 
       - name: coverage
-        run: cargo llvm-cov --all-features --tests --lcov --output-path lcov.info | tee coverage.txt
+        run: cargo llvm-cov --all-features --tests --lcov --output-path lcov.info
 
       - name: check threshold
         run: |
-          LINE=$(grep -oP 'TOTAL.*?\K[\d.]+(?=%)' coverage.txt | tail -1)
+          LF=$(grep '^LF:' lcov.info | tail -1 | grep -oP '\d+')
+          LH=$(grep '^LH:' lcov.info | tail -1 | grep -oP '\d+')
+          echo "lines found: $LF, lines hit: $LH"
+          LINE=$(awk -v lf="$LF" -v lh="$LH" 'BEGIN { printf "%.2f", lh * 100 / lf }')
           echo "line coverage: ${LINE}%"
           awk -v line="$LINE" 'BEGIN { if (line + 0 < 95) { printf "FAIL: coverage %.1f%% < 95%%\n", line; exit 1 } }'
           echo "PASS: coverage ${LINE}% >= 95%"
