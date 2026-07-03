@@ -1,24 +1,22 @@
-# 异常 ROADMAP — 用于集成测试 `Roadmap::validate()`
-
-> 此文件包含多种格式问题，供 `doctor` / `validate` 检测。
-> 不要手动"修复"它。
+# 异常 ROADMAP — 用于集成测试
 
 ## [v0.1.0]
 
 ### added
--  [x] 缩进异常的 checkbox
-- [X] 大写 X 的 checkbox
-- [ ] 正常待办
-
-### FIXED
-- [x] 已修复
-- [x] 分类标题全大写
-
-## [0.0.1]
+-  [x] plan status 命令：按 scope 查看规划进度
+- [X] plan clean 命令：删除已完成条目
+- [ ] plan doctor 命令：格式校验与修复
 
 ### Changed
+- [x] status 输出格式改表格
 
-- [x] 最初版本
+### FIXED
+- [x] M1 — maturin sdist 构建失败（已修复）
+- [x] M2 — Windows 构建失败（libgit2-sys）
+
+## [0.1.0]
 
 ### Added
-- [ ] 规划中的功能
+- [x] code sync：子模块同步
+- [x] release publish：版本发布
+- [ ] build status：CI 状态查询
