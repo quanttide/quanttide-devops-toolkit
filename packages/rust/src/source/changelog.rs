@@ -153,9 +153,9 @@ mod tests {
 
     #[test]
     fn test_empty_changelog() {
-        let cl = Changelog::from_str("").unwrap();
-        assert!(cl.versions().is_empty());
-        assert!(cl.latest_version().is_none());
+        let cl = Changelog::from_str("");
+        assert!(cl.is_err());
+        assert!(cl.unwrap_err().to_string().contains("no release note"));
     }
 
     #[test]
@@ -181,9 +181,10 @@ mod tests {
 ### Added
 - Something.
 ";
-        // 默认解析器支持 v 前缀
+        // 默认解析器识别 v 前缀后，版本 key 中不带 v
         let cl = Changelog::from_str(s).unwrap();
-        assert!(cl.contains_version("v0.1.0"));
+        assert!(cl.contains_version("0.1.0"));
+        assert!(!cl.contains_version("v0.1.0"));
     }
 
     #[test]
