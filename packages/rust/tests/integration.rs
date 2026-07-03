@@ -519,3 +519,143 @@ fn test_changelog_error_display() {
     let err = ChangelogError::Parse("syntax error".into());
     assert!(err.to_string().contains("解析 CHANGELOG 失败"));
 }
+
+// ═══════════════════════════════════════════════════════════════════════
+// source::git — 版本状态：tag 存在但配置文件无版本
+// ═══════════════════════════════════════════════════════════════════════
+
+#[test]
+fn test_git_version_status_config_no_version() {
+    // 有 tag 但配置文件版本为空 → consistent=true（None 被视为一致）
+    let d = tempfile::tempdir().unwrap();
+    let repo = git2::Repository::init(d.path()).unwrap();
+    let sig = git2::Signature::now("test", "test@test.com").unwrap();
+    let tree = {
+        let mut index = repo.index().unwrap();
+        let oid = index.write_tree().unwrap();
+        repo.find_tree(oid).unwrap()
+    };
+    repo.commit(Some("HEAD"), &sig, &sig, "init", &tree, &[])
+        .unwrap();
+    repo.tag_lightweight(
+        "test/v0.1.0",
+        &repo
+            .find_object(repo.head().unwrap().target().unwrap(), None)
+            .unwrap(),
+        false,
+    )
+    .unwrap();
+
+    // 创建 Cargo.toml 但版本号缺失
+    std::fs::write(
+        d.path().join("Cargo.toml"),
+        r#"[package]
+name = "test"
+"#,
+    )
+    .unwrap();
+
+    let scope = quanttide_devops::contract::Scope {
+        name: "test".into(),
+        dir: ".".into(),
+        language: quanttide_devops::contract::Language::Rust,
+        build_tool: quanttide_devops::contract::BuildTool::Unknown("auto".into()),
+        registry: quanttide_devops::contract::Registry::None,
+        framework: String::new(),
+        release: quanttide_devops::contract::StageRelease::default(),
+        test_threshold: None,
+        ci_workflow: None,
+    };
+    let vs = quanttide_devops::source::git::version_status(d.path(), &scope).unwrap();
+    // tag 有版本，Cargo.toml 无版本 → 文件列表应包含 (Cargo.toml, None)
+    assert_eq!(vs.tag_version.as_deref(), Some("0.1.0"));
+    assert!(
+        vs.config_files
+            .iter()
+            .any(|(n, v)| n == "Cargo.toml" && v.is_none())
+    );
+    // None 被视为一致 → consistent=true
+    assert!(vs.consistent);
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// scope 反序列化异常 — 覆盖 ScopesVisitor::expecting
+// ═══════════════════════════════════════════════════════════════════════
+
+#[test]
+fn test_scope_deserialize_wrong_type() {
+    // 通过 serde_yaml 触发 ScopesVisitor: scopes 不是映射而是字符串
+    let yaml = "scopes: not_a_map\n";
+    let result = quanttide_devops::contract::load_from_str(yaml);
+    assert!(result.is_err());
+}
+
+#[test]
+fn test_scope_deserialize_type_error() {
+    // 构造一个 YAML 映射，其中 scope 条目的 dir 字段类型错误
+    let d = tempfile::tempdir().unwrap();
+    let dir = d.path().join(".quanttide/devops");
+    std::fs::create_dir_all(&dir).unwrap();
+    let yaml = r#"
+scopes:
+  cli:
+    dir:
+      nested: value
+"#;
+    std::fs::write(dir.join("contract.yaml"), yaml).unwrap();
+    let err = quanttide_devops::contract::load(d.path()).unwrap_err();
+    assert!(err.to_string().contains("解析失败") || err.to_string().contains("作用域"));
+}
+
+#[test]
+fn test_scope_deserialize_missing_dir() {
+    // scope 缺少必填字段 `dir`
+    let d = tempfile::tempdir().unwrap();
+    let dir = d.path().join(".quanttide/devops");
+    std::fs::create_dir_all(&dir).unwrap();
+    let yaml = r#"
+scopes:
+  cli:
+    language: rust
+"#;
+    std::fs::write(dir.join("contract.yaml"), yaml).unwrap();
+    let err = quanttide_devops::contract::load(d.path()).unwrap_err();
+    assert!(err.to_string().contains("dir"));
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// read_all_config_versions — 空值边缘情况
+// ═══════════════════════════════════════════════════════════════════════
+
+#[test]
+fn test_read_config_versions_cargo_empty_version() {
+    let d = tempfile::tempdir().unwrap();
+    std::fs::write(
+        d.path().join("Cargo.toml"),
+        r#"[package]
+name = "test"
+version = ""
+"#,
+    )
+    .unwrap();
+    let versions = quanttide_devops::contract::read_all_config_versions(d.path());
+    // version 为空字符串 → 返回 (filename, None)
+    assert!(
+        versions
+            .iter()
+            .any(|(n, v)| n == "Cargo.toml" && v.is_none())
+    );
+}
+
+#[test]
+fn test_read_config_versions_yaml_empty_value() {
+    let d = tempfile::tempdir().unwrap();
+    // version: 后面只有空白
+    std::fs::write(d.path().join("pubspec.yaml"), "version: \nname: test\n").unwrap();
+    let versions = quanttide_devops::contract::read_all_config_versions(d.path());
+    assert!(
+        versions
+            .iter()
+            .any(|(n, v)| n == "pubspec.yaml" && v.is_none())
+    );
+}
