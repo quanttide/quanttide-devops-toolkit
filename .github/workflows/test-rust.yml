@@ -31,7 +31,11 @@ jobs:
         run: |
           LF=$(grep '^LF:' lcov.info | tail -1 | grep -oP '\d+')
           LH=$(grep '^LH:' lcov.info | tail -1 | grep -oP '\d+')
-          echo "lines found: $LF, lines hit: $LH"
+          echo "lines found: ${LF:-<empty>}, lines hit: ${LH:-<empty>}"
+          if [ -z "$LF" ] || [ -z "$LH" ] || [ "$LF" = "0" ]; then
+            echo "ERROR: cannot parse coverage data from lcov.info (LF=$LF, LH=$LH)"
+            exit 1
+          fi
           LINE=$(awk -v lf="$LF" -v lh="$LH" 'BEGIN { printf "%.2f", lh * 100 / lf }')
           echo "line coverage: ${LINE}%"
           awk -v line="$LINE" 'BEGIN { if (line + 0 < 95) { printf "FAIL: coverage %.1f%% < 95%%\n", line; exit 1 } }'
