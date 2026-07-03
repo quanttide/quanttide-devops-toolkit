@@ -235,4 +235,14 @@ mod tests {
         let tool: BuildTool = serde_yaml::from_str("make").unwrap();
         assert_eq!(tool, BuildTool::Unknown("make".into()));
     }
+
+    #[test]
+    fn test_language_default() {
+        assert_eq!(Language::default(), Language::Unknown("auto".into()));
+    }
+
+    #[test]
+    fn test_build_tool_default() {
+        assert_eq!(BuildTool::default(), BuildTool::Unknown("auto".into()));
+    }
 }
