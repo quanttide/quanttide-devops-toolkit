@@ -795,10 +795,6 @@ mod tests {
         let r = Roadmap::from_str(s).unwrap();
         // 自定义分类不应报大小写问题（保持原样）
         let issues = r.validate("scope");
-        let category_issues: Vec<_> = issues
-            .iter()
-            .filter(|i| i.message.contains("自定义分类"))
-            .collect();
         // 应无任何大小写相关验证问题
         assert!(!issues.iter().any(|i| i.message.contains("大小写不标准")));
     }
