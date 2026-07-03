@@ -1,0 +1,26 @@
+# quanttide-devops toolkit 治理契约
+
+stages:
+  build:
+    command: cargo build
+  test:
+    command: cargo test
+    threshold: 80
+  release:
+    changelog: CHANGELOG.md
+
+platform:
+  source_control: github
+  pipeline: github_actions
+  artifact_registry: crates
+
+sources:
+  version:
+    type: cargo
+
+scopes:
+  toolkit:
+    dir: .
+    language: rust
+    build_tool: cargo
+    registry: crates
