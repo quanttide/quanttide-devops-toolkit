@@ -75,3 +75,22 @@ impl SourceType {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_source_default() {
+        let s = Source::default();
+        assert_eq!(s.version.source_type, SourceType::Auto);
+        assert_eq!(s.version.path, None);
+    }
+
+    #[test]
+    fn test_version_source_default() {
+        let vs = VersionSource::default();
+        assert_eq!(vs.source_type, SourceType::Auto);
+        assert_eq!(vs.path, None);
+    }
+}

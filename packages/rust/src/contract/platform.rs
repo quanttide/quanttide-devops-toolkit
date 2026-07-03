@@ -83,3 +83,19 @@ impl fmt::Display for Registry {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_registry_display() {
+        assert_eq!(Registry::Crates.to_string(), "crates.io");
+        assert_eq!(Registry::PyPI.to_string(), "PyPI");
+        assert_eq!(Registry::PubDev.to_string(), "pub.dev");
+        assert_eq!(Registry::Npm.to_string(), "npm");
+        assert_eq!(Registry::GitHubReleases.to_string(), "GitHub Releases");
+        assert_eq!(Registry::Docker.to_string(), "Docker");
+        assert_eq!(Registry::None.to_string(), "(none)");
+    }
+}

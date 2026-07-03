@@ -85,3 +85,31 @@ impl Default for StageRelease {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_stage_build_default() {
+        let s = StageBuild::default();
+        assert_eq!(s.command, None);
+    }
+
+    #[test]
+    fn test_stage_test_default() {
+        let s = StageTest::default();
+        assert_eq!(s.command, None);
+        assert_eq!(s.threshold, 70.0);
+    }
+
+    #[test]
+    fn test_default_threshold_fn() {
+        assert_eq!(default_threshold(), 70.0);
+    }
+
+    #[test]
+    fn test_default_changelog_fn() {
+        assert_eq!(default_changelog(), "CHANGELOG.md");
+    }
+}

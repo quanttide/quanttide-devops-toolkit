@@ -39,6 +39,7 @@ impl From<std::io::Error> for ChangelogError {
 /// 内部持有原始文本 + 解析后的有序 Map（版本号 → Release）。
 #[derive(Debug)]
 pub struct Changelog {
+    #[allow(dead_code)]
     /// 原始文本，保障解析结果的引用有效性。
     raw: String,
     /// 解析后的版本 → Release 有序 Map。

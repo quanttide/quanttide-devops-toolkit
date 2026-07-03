@@ -30,3 +30,38 @@ pub fn load(repo_path: &Path) -> Result<Contract, ContractError> {
 pub fn load_from_str(s: &str) -> Result<Contract, ContractError> {
     serde_yaml::from_str::<Contract>(s).map_err(|e| ContractError::Parse(e.to_string()))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_load_from_str_valid() {
+        let yaml = r#"
+stages:
+  test:
+    threshold: 80
+
+scopes:
+  cli:
+    dir: src/cli
+"#;
+        let c = load_from_str(yaml).unwrap();
+        assert_eq!(c.scopes.len(), 1);
+        assert_eq!(c.scopes[0].name, "cli");
+        assert_eq!(c.scopes[0].dir, "src/cli");
+        assert_eq!(c.stages.test.threshold, 80.0);
+    }
+
+    #[test]
+    fn test_load_from_str_empty() {
+        let c = load_from_str("").unwrap();
+        assert!(c.scopes.is_empty());
+    }
+
+    #[test]
+    fn test_load_from_str_invalid() {
+        let err = load_from_str("invalid: [").unwrap_err();
+        assert!(err.to_string().contains("解析失败"));
+    }
+}

@@ -195,3 +195,44 @@ where
 
     deserializer.deserialize_map(ScopesVisitor)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_language_as_str() {
+        assert_eq!(Language::Rust.as_str(), "rust");
+        assert_eq!(Language::Python.as_str(), "python");
+        assert_eq!(Language::Go.as_str(), "go");
+        assert_eq!(Language::Dart.as_str(), "dart");
+        assert_eq!(Language::TypeScript.as_str(), "typescript");
+        assert_eq!(Language::Unknown("zig".into()).as_str(), "zig");
+    }
+
+    #[test]
+    fn test_build_tool_as_str() {
+        assert_eq!(BuildTool::Cargo.as_str(), "cargo");
+        assert_eq!(BuildTool::Uv.as_str(), "uv");
+        assert_eq!(BuildTool::Go.as_str(), "go");
+        assert_eq!(BuildTool::Flutter.as_str(), "flutter");
+        assert_eq!(BuildTool::Npm.as_str(), "npm");
+        assert_eq!(BuildTool::Unknown("make".into()).as_str(), "make");
+    }
+
+    #[test]
+    fn test_language_deserialize() {
+        let lang: Language = serde_yaml::from_str("rust").unwrap();
+        assert_eq!(lang, Language::Rust);
+        let lang: Language = serde_yaml::from_str("zig").unwrap();
+        assert_eq!(lang, Language::Unknown("zig".into()));
+    }
+
+    #[test]
+    fn test_build_tool_deserialize() {
+        let tool: BuildTool = serde_yaml::from_str("cargo").unwrap();
+        assert_eq!(tool, BuildTool::Cargo);
+        let tool: BuildTool = serde_yaml::from_str("make").unwrap();
+        assert_eq!(tool, BuildTool::Unknown("make".into()));
+    }
+}
