@@ -1,5 +1,23 @@
 # CHANGELOG
 
+## [0.1.5] - 2026-07-03
+
+### Added
+
+- `source::roadmap` 模块：ROADMAP.md 解析、进度统计、格式验证（纯文本，零新增依赖）
+- `RoadmapVersion`、`RoadmapProgress`、`RoadmapChecklistItem`、`RoadmapIssue` 类型
+- 101 单元测试覆盖解析、进度统计、格式验证、v 前缀标准化
+- 5 集成测试覆盖端到端解析、错误显示、真实文件验证
+
+### Fixed
+
+- `test-rust` CI coverage 阈值检查：LCOV 直解析增加空 LF/LH 守卫和除零防护
+
+### Coverage
+
+- 行覆盖率：98.85%（514 / 520）
+- 全部 142 测试：101 单元 + 36 集成 + 5 文档
+
 ## [0.1.4] - 2026-07-03
 
 ### Added
