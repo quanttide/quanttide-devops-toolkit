@@ -116,7 +116,6 @@ fn extract_json_version(content: &str) -> Option<String> {
     for line in content.lines() {
         if let Some(pos) = line.find(r#""version":"#) {
             let after_key = line[pos + 10..].trim();
-            // 跳过开头的引号
             if let Some(start) = after_key.find('"') {
                 let after_open = &after_key[start + 1..];
                 if let Some(end) = after_open.find('"') {

@@ -475,12 +475,27 @@ fn test_validate_version_empty_prerelease() {
     assert!(!quanttide_devops::contract::validate_version("v0.1.0-."));
 }
 
+// ═══════════════════════════════════════════════════════════════════════
+// read_all_config_versions — JSON 版本提取
+// ═══════════════════════════════════════════════════════════════════════
+
+#[test]
+fn test_read_config_versions_package_json_with_version() {
+    let d = tempfile::tempdir().unwrap();
+    std::fs::write(d.path().join("package.json"), r#"{"version":"1.2.3"}"#).unwrap();
+    let versions = quanttide_devops::contract::read_all_config_versions(d.path());
+    assert!(
+        versions
+            .iter()
+            .any(|(n, v)| n == "package.json" && v.as_deref() == Some("1.2.3"))
+    );
+}
+
 #[test]
 fn test_read_config_versions_package_json_empty() {
     let d = tempfile::tempdir().unwrap();
     std::fs::write(d.path().join("package.json"), r#"{"version":""}"#).unwrap();
     let versions = quanttide_devops::contract::read_all_config_versions(d.path());
-    // 文件存在但版本为空 → 返回 (filename, None)
     assert!(
         versions
             .iter()
