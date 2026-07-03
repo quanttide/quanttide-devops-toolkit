@@ -2,7 +2,17 @@
 
 > 格式：Keep a Changelog + checkbox 任务清单。正序排列（近期版本在上）。
 
-## [0.1.4] — 当前
+## [0.1.5] — 待实施
+
+### Added
+- [ ] `source/roadmap.rs`：ROADMAP.md 解析、进度统计、格式验证
+- [ ] `RoadmapProgress` / `RoadmapIssue` 类型
+- [ ] 依赖：无新增（纯文本解析）
+
+### Fixed
+- [ ] `test-rust` CI coverage 阈值检查：LCOV 直解析（`LF`/`LH`）
+
+## [0.1.4] — 已发布
 
 ### Added
 - [x] `source/changelog.rs`：CHANGELOG 解析、release notes 提取、版本存在性校验

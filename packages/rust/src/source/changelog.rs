@@ -175,14 +175,14 @@ mod tests {
     }
 
     #[test]
-    fn test_v_prefix() {
+    fn test_changelog_strips_v_prefix() {
         let s = "\
 ## v0.1.0 - 2026-01-01
 
 ### Added
 - Something.
 ";
-        // 默认解析器识别 v 前缀后，版本 key 中不带 v
+        // v 前缀被解析器剥离，版本 key 统一不带 v
         let cl = Changelog::from_str(s).unwrap();
         assert!(cl.contains_version("0.1.0"));
         assert!(!cl.contains_version("v0.1.0"));
