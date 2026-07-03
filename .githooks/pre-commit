@@ -1,0 +1,35 @@
+#!/bin/bash
+# pre-commit hook — 量潮 DevOps 工具链
+#
+# 当 packages/rust/ 下的文件被暂存时，运行 cargo test。
+# 不跑 coverage（太慢，由 CI 负责）。
+#
+# 安装：
+#   git config core.hooksPath .githooks
+
+set -e
+
+RUST="packages/rust"
+
+if ! git diff --cached --name-only | grep -q "^$RUST/"; then
+  exit 0
+fi
+
+echo ""
+echo "  Rust 包有变更，运行测试..."
+
+# 捕获输出，避免跑两次
+output=$(cd "$RUST" && cargo test 2>&1) || {
+  echo ""
+  echo "  $output" | tail -20
+  echo ""
+  echo "  ✗ 测试失败，提交终止"
+  echo "    修复后重试，或 git commit --no-verify 跳过"
+  exit 1
+}
+
+# 提取摘要行
+summary=$(grep 'test result:' <<< "$output" | head -1)
+echo "  ✓ cargo test 通过 ($summary)"
+echo ""
+exit 0
