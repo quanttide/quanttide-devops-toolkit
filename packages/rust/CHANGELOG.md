@@ -1,5 +1,25 @@
 # CHANGELOG
 
+## [0.1.4] - 2026-07-03
+
+### Added
+
+- `source::changelog` 模块：CHANGELOG 解析、release notes 提取、版本存在性校验（`parse-changelog`）
+- 集成测试套件：15 个测试覆盖 contract 加载、SourceType 检测、Registry 序列化
+- `.githooks/pre-commit`：Rust 变更自动跑测试
+- `test-rust` CI workflow：release 触发，build + test + coverage 阈值 95%
+
+### Changed
+
+- 依赖：新增 `parse-changelog = "0.6"`（零额外依赖）
+- `contract/mod.rs` 的 `load()` / `load_from_str()` 调用者以外不再直接使用
+- `contract/source.rs` 的 `SourceType::detect()` 通过集成测试覆盖全部 5 种文件
+
+### Coverage
+
+- 单位测试覆盖率：98.39%（区域）/ 99.31%（行）
+- 全部 115 测试：75 单元 + 36 集成 + 4 文档
+
 ## [0.1.3] - 2026-07-03
 
 ### Added

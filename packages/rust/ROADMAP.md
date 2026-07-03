@@ -2,13 +2,16 @@
 
 > 格式：Keep a Changelog + checkbox 任务清单。正序排列（近期版本在上）。
 
-## [0.1.4] — 待实施
+## [0.1.4] — 当前
 
 ### Added
-- [ ] `source/changelog.rs`：CHANGELOG 解析、release notes 提取、版本存在性校验
-- [ ] 依赖 `parse-changelog`（taiki-e，274k 下载，只读轻量）
+- [x] `source/changelog.rs`：CHANGELOG 解析、release notes 提取、版本存在性校验
+- [x] 依赖 `parse-changelog`（taiki-e，274k 下载，只读轻量）
+- [x] 集成测试套件：contract 加载、SourceType 检测、Registry 序列化（15 测试）
+- [x] `.githooks/pre-commit`：Rust 变更自动跑测试
+- [x] `test-rust` CI workflow：release 触发，coverage 阈值 95%
 
-## [0.1.3] — 当前
+## [0.1.3] — 已发布
 
 ### Added
 - [x] `source/git.rs`：Git tag 读取、scope 过滤、版本一致性检查
