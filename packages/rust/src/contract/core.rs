@@ -192,7 +192,7 @@ scopes:
 "#;
         let c: Contract = parse_yaml(yaml);
         assert_eq!(c.stages.build.command, None);
-        assert_eq!(c.stages.test.threshold, 70.0);
+        assert_eq!(c.stages.test.threshold, 80.0);
         assert_eq!(c.stages.release.changelog, "CHANGELOG.md");
         assert_eq!(c.platform.source_control, SourceControl::Github);
         assert_eq!(c.sources.version.source_type, SourceType::Auto);
@@ -202,7 +202,7 @@ scopes:
     #[test]
     fn test_fully_empty_yaml() {
         let c: Contract = serde_yaml::from_str("").unwrap_or_default();
-        assert_eq!(c.stages.test.threshold, 70.0);
+        assert_eq!(c.stages.test.threshold, 80.0);
         assert!(c.scopes.is_empty());
     }
 

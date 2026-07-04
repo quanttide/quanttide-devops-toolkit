@@ -22,7 +22,7 @@ impl Default for Stage {
             build: StageBuild { command: None },
             test: StageTest {
                 command: None,
-                threshold: 70.0,
+                threshold: 80.0,
             },
             release: StageRelease {
                 changelog: "CHANGELOG.md".into(),
@@ -54,13 +54,13 @@ impl Default for StageTest {
     fn default() -> Self {
         Self {
             command: None,
-            threshold: 70.0,
+            threshold: 80.0,
         }
     }
 }
 
 const fn default_threshold() -> f64 {
-    70.0
+    80.0
 }
 
 /// 发布阶段。
@@ -100,12 +100,12 @@ mod tests {
     fn test_stage_test_default() {
         let s = StageTest::default();
         assert_eq!(s.command, None);
-        assert_eq!(s.threshold, 70.0);
+        assert_eq!(s.threshold, 80.0);
     }
 
     #[test]
     fn test_default_threshold_fn() {
-        assert_eq!(default_threshold(), 70.0);
+        assert_eq!(default_threshold(), 80.0);
     }
 
     #[test]

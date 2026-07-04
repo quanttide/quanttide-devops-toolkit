@@ -55,7 +55,7 @@ fn test_contract_load_empty_yaml() {
     std::fs::write(dir.join("contract.yaml"), "").unwrap();
     let c = quanttide_devops::contract::load(d.path()).unwrap();
     assert!(c.scopes.is_empty());
-    assert_eq!(c.stages.test.threshold, 70.0);
+    assert_eq!(c.stages.test.threshold, 80.0);
 }
 
 // ═══════════════════════════════════════════════════════════════════════
