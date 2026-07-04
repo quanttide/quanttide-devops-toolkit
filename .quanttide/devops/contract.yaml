@@ -1,4 +1,11 @@
-# quanttide-devops toolkit 治理契约
+# =============================================================
+# quanttide-devops toolkit — Package archetype（库项目默认契约）
+#
+# 特征：
+#   - 标准构建（无 --release，crates.io 发布时自动 release）
+#   - 单 scope（dir: .），目录即包
+#   - 直接发布到注册源
+# =============================================================
 
 stages:
   build:
@@ -8,6 +15,8 @@ stages:
     threshold: 80
   release:
     changelog: CHANGELOG.md
+    pre_publish:
+      - cargo publish
 
 platform:
   source_control: github
