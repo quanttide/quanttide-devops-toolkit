@@ -1,5 +1,19 @@
 # CHANGELOG
 
+## [0.2.0] - 2026-07-05
+
+### Added
+- 新增 pre_publish 配置（package archetype）
+
+### Changed
+- 重构源代码版本管理模块：合并 language 到 config_file，重命名 VersionSource 为 TagSource，分解 version 为 git_tag 和 config_file，迁移 git 后端至 gix，集成 semver 并调整相关测试
+- 模块边界清理，完成 SourceType 接线及 verify_version 重命名，移动 read_config_versions 至 source::version
+- 添加 GitSubmoduleEditor 及 submodule 示例，更新文档以反映 gix 优先的混合策略
+- 将默认测试阈值从 70% 提升至 80%，清理完成的路标项
+
+### Removed
+- 移除 contract.yaml（功能已由 auto-detect 覆盖）
+
 ## [0.2.0-alpha.1] - 2026-07-05
 
 ### Changed
