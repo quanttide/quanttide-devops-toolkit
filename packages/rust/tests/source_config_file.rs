@@ -77,9 +77,34 @@ version = ""
 }
 
 // ═══════════════════════════════════════════════════════════════════════
-// 语言检测
+// detect_languages — 多语言检测
 // ═══════════════════════════════════════════════════════════════════════
 
+#[test]
+fn test_detect_languages_multi() {
+    let d = tempfile::tempdir().unwrap();
+    std::fs::write(d.path().join("Cargo.toml"), "").unwrap();
+    std::fs::write(d.path().join("pyproject.toml"), "").unwrap();
+    std::fs::write(d.path().join("package.json"), "").unwrap();
+    let langs = quanttide_devops::source::config_file::detect_languages(d.path());
+    assert_eq!(langs.len(), 3);
+    assert!(langs.contains(&quanttide_devops::contract::Language::Rust));
+    assert!(langs.contains(&quanttide_devops::contract::Language::Python));
+    assert!(langs.contains(&quanttide_devops::contract::Language::TypeScript));
+}
+
+#[test]
+fn test_detect_languages_empty() {
+    let d = tempfile::tempdir().unwrap();
+    let langs = quanttide_devops::source::config_file::detect_languages(d.path());
+    assert!(langs.is_empty());
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// detect_language — 单语言检测（按优先级，已废弃）
+// ═══════════════════════════════════════════════════════════════════════
+
+#[allow(deprecated)]
 #[test]
 fn test_detect_language_rust() {
     let d = tempfile::tempdir().unwrap();
@@ -90,6 +115,7 @@ fn test_detect_language_rust() {
     );
 }
 
+#[allow(deprecated)]
 #[test]
 fn test_detect_language_unknown() {
     let d = tempfile::tempdir().unwrap();
@@ -99,6 +125,7 @@ fn test_detect_language_unknown() {
     ));
 }
 
+#[allow(deprecated)]
 #[test]
 fn test_detect_language_python() {
     let d = tempfile::tempdir().unwrap();
@@ -109,6 +136,7 @@ fn test_detect_language_python() {
     );
 }
 
+#[allow(deprecated)]
 #[test]
 fn test_detect_language_python_requirements() {
     let d = tempfile::tempdir().unwrap();
@@ -119,6 +147,7 @@ fn test_detect_language_python_requirements() {
     );
 }
 
+#[allow(deprecated)]
 #[test]
 fn test_detect_language_go() {
     let d = tempfile::tempdir().unwrap();
@@ -129,6 +158,7 @@ fn test_detect_language_go() {
     );
 }
 
+#[allow(deprecated)]
 #[test]
 fn test_detect_language_dart() {
     let d = tempfile::tempdir().unwrap();
@@ -139,6 +169,7 @@ fn test_detect_language_dart() {
     );
 }
 
+#[allow(deprecated)]
 #[test]
 fn test_detect_language_typescript() {
     let d = tempfile::tempdir().unwrap();

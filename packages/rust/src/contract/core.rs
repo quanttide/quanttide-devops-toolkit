@@ -54,7 +54,10 @@ impl Contract {
     /// 语言探测：scope 声明了具体语言则返回，否则按目录文件推测。
     pub fn resolve_language(&self, scope: &Scope, scope_dir: &Path) -> Language {
         match &scope.language {
-            Language::Unknown(_) => crate::source::config_file::detect_language(scope_dir),
+            Language::Unknown(_) => crate::source::config_file::detect_languages(scope_dir)
+                .into_iter()
+                .next()
+                .unwrap_or(Language::Unknown("无法识别".into())),
             lang => lang.clone(),
         }
     }
@@ -95,7 +98,7 @@ impl Contract {
     /// assert!(c.scopes.is_empty());
     /// ```
     pub fn auto_detect(repo_path: &Path) -> Self {
-        let root_lang = crate::source::config_file::detect_language(repo_path);
+        let root_langs = crate::source::config_file::detect_languages(repo_path);
 
         let mut scopes: Vec<Scope> = Vec::new();
         for base in &["src", "packages", "apps"] {
@@ -113,10 +116,12 @@ impl Contract {
                         Some(n) => n.to_string_lossy().to_string(),
                         None => continue,
                     };
-                    let sub_lang = crate::source::config_file::detect_language(&sub);
-                    if matches!(sub_lang, Language::Unknown(_)) {
+                    let sub_langs = crate::source::config_file::detect_languages(&sub);
+                    if sub_langs.is_empty() {
                         continue;
                     }
+                    // 子目录通常只有一种语言，取第一个
+                    let sub_lang = sub_langs.into_iter().next().unwrap();
                     scopes.push(Scope {
                         name,
                         dir: format!("{}/{}", base, &sub.file_name().unwrap().to_string_lossy()),
@@ -132,7 +137,7 @@ impl Contract {
             }
         }
 
-        if !matches!(root_lang, Language::Unknown(_)) {
+        if let Some(root_lang) = root_langs.into_iter().next() {
             scopes.insert(
                 0,
                 Scope {

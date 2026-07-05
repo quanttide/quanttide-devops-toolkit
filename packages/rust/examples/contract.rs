@@ -32,13 +32,14 @@ fn main() {
     println!();
     println!("📋 scopes ({} 个):", contract.scopes.len());
     for scope in &contract.scopes {
-        let lang =
-            quanttide_devops::source::config_file::detect_language(&repo_path.join(&scope.dir));
+        let langs =
+            quanttide_devops::source::config_file::detect_languages(&repo_path.join(&scope.dir));
+        let lang_label = langs.first().map(|l| l.as_str()).unwrap_or("—");
         println!(
             "   {:<16} dir: {:<24} lang: {} / {}",
             scope.name,
             scope.dir,
-            lang.as_str(),
+            lang_label,
             scope.build_tool.as_str(),
         );
     }
