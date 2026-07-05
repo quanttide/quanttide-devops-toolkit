@@ -1,5 +1,7 @@
 use std::path::Path;
 
+use crate::contract::Scope;
+
 /// 校验版本号格式。
 ///
 /// 接受以下格式：
@@ -80,6 +82,93 @@ pub fn normalize_version(version: &str) -> String {
         .to_string()
 }
 
+// ═══════════════════════════════════════════════════════════════════════
+// 版本一致性规则
+// ═══════════════════════════════════════════════════════════════════════
+
+/// Tag 版本与配置文件版本的一致性检查结果。
+///
+/// 由 `check_version_consistency` 产生，记录双方原始值和比对结论。
+#[derive(Debug)]
+pub struct VersionStatus {
+    /// 最新 git tag 的版本号（已标准化，去 `v` 前缀和 scope 前缀）。
+    pub tag_version: Option<String>,
+    /// 配置文件中找到的第一个非空版本号。
+    pub config_version: Option<String>,
+    /// tag 与所有配置文件版本是否一致。
+    pub consistent: bool,
+    /// 所有配置文件的版本号明细。
+    pub config_files: Vec<(String, Option<String>)>,
+}
+
+/// 检查 tag 版本与配置文件版本是否一致。
+///
+/// `config_files` 来自 `source::version::read_config_versions`、
+/// `tag_version` 来自 `source::version::latest_tag`。
+/// 本函数只做规则判定，不关心数据来源。
+///
+/// # 一致性规则
+///
+/// - 有 tag：所有有版本号的配置文件必须与 tag 版本一致，无版本号的忽略
+/// - 无 tag：所有配置文件必须无版本号
+///
+/// # 示例
+///
+/// ```
+/// use quanttide_devops::contract::check_version_consistency;
+///
+/// assert!(check_version_consistency(
+///     Some("0.1.0"),
+///     &[("Cargo.toml".into(), Some("0.1.0".into()))],
+/// ));
+/// assert!(!check_version_consistency(
+///     Some("0.1.0"),
+///     &[("Cargo.toml".into(), Some("0.2.0".into()))],
+/// ));
+/// assert!(check_version_consistency(
+///     Some("0.1.0"),
+///     &[("Cargo.toml".into(), None)],
+/// ));
+/// assert!(check_version_consistency(None, &[("Cargo.toml".into(), None)]));
+/// ```
+pub fn check_version_consistency(
+    tag_version: Option<&str>,
+    config_files: &[(String, Option<String>)],
+) -> bool {
+    match tag_version {
+        Some(t) => config_files.iter().all(|(_, v)| match v {
+            Some(cv) => cv == t,
+            None => true,
+        }),
+        None => config_files.iter().all(|(_, v)| v.is_none()),
+    }
+}
+
+/// 从 git tag 和配置文件中读取版本号，验证一致性。
+///
+/// 组合两个事实源（[`source::git_tag::latest_tag`] 和
+/// [`source::config_file::read_config_versions`]），应用一致性规则，
+/// 返回 [`VersionStatus`]。
+pub fn verify_version(
+    repo_path: &Path,
+    scope: &Scope,
+) -> Result<VersionStatus, Box<dyn std::error::Error>> {
+    let tag_version = crate::source::git_tag::latest_tag(repo_path, &scope.name)?;
+    let scope_dir = repo_path.join(&scope.dir);
+    let config_files = crate::source::config_file::read_config_versions(&scope_dir);
+    let config_version = config_files
+        .iter()
+        .find(|(_, v)| v.is_some())
+        .and_then(|(_, v)| v.clone());
+    let consistent = check_version_consistency(tag_version.as_deref(), &config_files);
+    Ok(VersionStatus {
+        tag_version,
+        config_version,
+        consistent,
+        config_files,
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -139,5 +228,65 @@ mod tests {
     #[test]
     fn test_normalize_version_no_prefix() {
         assert_eq!(normalize_version("1.2.3"), "1.2.3");
+    }
+
+    // ── check_version_consistency ──────────────────────────────────
+
+    #[test]
+    fn test_consistency_matches() {
+        assert!(check_version_consistency(
+            Some("0.1.0"),
+            &[("Cargo.toml".into(), Some("0.1.0".into()))]
+        ));
+    }
+
+    #[test]
+    fn test_consistency_mismatch() {
+        assert!(!check_version_consistency(
+            Some("0.1.0"),
+            &[("Cargo.toml".into(), Some("0.2.0".into()))]
+        ));
+    }
+
+    #[test]
+    fn test_consistency_config_no_version() {
+        assert!(check_version_consistency(
+            Some("0.1.0"),
+            &[("Cargo.toml".into(), None)]
+        ));
+    }
+
+    #[test]
+    fn test_consistency_no_tag_no_config() {
+        assert!(check_version_consistency(
+            None,
+            &[("Cargo.toml".into(), None)]
+        ));
+    }
+
+    #[test]
+    fn test_consistency_no_tag_but_config_has_version() {
+        assert!(!check_version_consistency(
+            None,
+            &[("Cargo.toml".into(), Some("0.1.0".into()))]
+        ));
+    }
+
+    #[test]
+    fn test_consistency_multi_file_all_match() {
+        let files = vec![
+            ("Cargo.toml".into(), Some("0.1.0".into())),
+            ("pyproject.toml".into(), Some("0.1.0".into())),
+        ];
+        assert!(check_version_consistency(Some("0.1.0"), &files));
+    }
+
+    #[test]
+    fn test_consistency_multi_file_one_mismatch() {
+        let files = vec![
+            ("Cargo.toml".into(), Some("0.1.0".into())),
+            ("pyproject.toml".into(), Some("0.2.0".into())),
+        ];
+        assert!(!check_version_consistency(Some("0.1.0"), &files));
     }
 }

@@ -13,9 +13,11 @@ pub use core::{Contract, detect_language_by_files};
 pub use error::ContractError;
 pub use platform::{Pipeline, Platform, Registry, SourceControl};
 pub use scope::{BuildTool, Language, Scope};
-pub use source::{Source, SourceType, VersionSource};
+pub use source::{Source, SourceType};
 pub use stage::{Stage, StageBuild, StageRelease, StageTest};
-pub use version::{normalize_version, validate_version};
+pub use version::{
+    VersionStatus, check_version_consistency, normalize_version, validate_version, verify_version,
+};
 
 use std::path::Path;
 
