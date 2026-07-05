@@ -123,15 +123,15 @@ fn test_tags_for_scope_no_match() {
     );
 }
 
-// ── version_status ─────────────────────────────────────────
+// ── verify_version ─────────────────────────────────────────
 
 #[test]
-fn test_git_version_status() {
+fn test_git_verify_version() {
     let d = tempfile::tempdir().unwrap();
     let scope = scope_for_path(".");
 
     // 无 git 仓库 → RepoOpen 错误
-    let result = quanttide_devops::source::version::version_status(d.path(), &scope);
+    let result = quanttide_devops::source::version::verify_version(d.path(), &scope);
     assert!(result.is_err());
     assert!(result.unwrap_err().to_string().contains("无法打开仓库"));
 
@@ -145,7 +145,7 @@ version = "0.1.0"
 "#,
     )
     .unwrap();
-    let vs = quanttide_devops::source::version::version_status(d.path(), &scope).unwrap();
+    let vs = quanttide_devops::source::version::verify_version(d.path(), &scope).unwrap();
     assert!(vs.tag_version.is_none());
     assert!(vs.config_version.is_some());
 
@@ -158,14 +158,14 @@ version = "0.1.0"
         false,
     )
     .unwrap();
-    let vs = quanttide_devops::source::version::version_status(d.path(), &scope).unwrap();
+    let vs = quanttide_devops::source::version::verify_version(d.path(), &scope).unwrap();
     assert_eq!(vs.tag_version.as_deref(), Some("0.1.0"));
     assert_eq!(vs.config_version.as_deref(), Some("0.1.0"));
     assert!(vs.consistent);
 }
 
 #[test]
-fn test_git_version_status_config_no_version() {
+fn test_git_verify_version_config_no_version() {
     let d = tempfile::tempdir().unwrap();
     init_repo_with_tags(d.path(), &["test/v0.1.0"]);
 
@@ -178,7 +178,7 @@ name = "test"
     .unwrap();
 
     let scope = scope_for_path(".");
-    let vs = quanttide_devops::source::version::version_status(d.path(), &scope).unwrap();
+    let vs = quanttide_devops::source::version::verify_version(d.path(), &scope).unwrap();
     assert_eq!(vs.tag_version.as_deref(), Some("0.1.0"));
     assert!(
         vs.config_files

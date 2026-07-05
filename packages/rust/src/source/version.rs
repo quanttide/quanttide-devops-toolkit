@@ -414,24 +414,26 @@ fn extract_kv_yaml_version(content: &str) -> Option<String> {
     None
 }
 
-/// 检查 scope 配置文件版本与最新 git tag 是否一致。
+/// 验证 scope 的 tag 版本与配置文件版本是否一致。
 ///
-/// 结合 `latest_tag` 与配置文件版本读取的结果做对比。
+/// "验证"强调这是一个比对动作：从两个来源（git tag 和配置文件）读取版本号，
+/// 然后判断它们是否一致。返回值 [`VersionStatus`] 保留了双方的原始值，
+/// 供调用方决定如何处理不一致的情况。
 ///
 /// # 示例
 ///
 /// ```ignore
-/// use quanttide_devops::source::version::version_status;
+/// use quanttide_devops::source::version::verify_version;
 /// use quanttide_devops::contract::Scope;
 ///
 /// let scope = Scope {
 ///     name: "cli".into(), dir: "src/cli".into(),
 ///     ..Default::default()
 /// };
-/// let status = version_status("/some/repo".as_ref(), &scope)?;
+/// let status = verify_version("/some/repo".as_ref(), &scope)?;
 /// println!("consistent: {}", status.consistent);
 /// ```
-pub fn version_status(
+pub fn verify_version(
     repo_path: &Path,
     scope: &Scope,
 ) -> Result<VersionStatus, VersionSourceError> {

@@ -52,7 +52,7 @@ for (file, version) in &versions {
 
 ```rust
 use std::path::Path;
-use quanttide_devops::source::version::{latest_tag, version_status};
+use quanttide_devops::source::version::{latest_tag, verify_version};
 use quanttide_devops::contract::Scope;
 
 // 获取 scope 最新 tag
@@ -65,7 +65,7 @@ let scope = Scope {
     dir: "src/cli".into(),
     ..Default::default()
 };
-let status = version_status(Path::new("."), &scope).unwrap();
+let status = verify_version(Path::new("."), &scope).unwrap();
 println!("consistent: {}", status.consistent);
 ```
 
