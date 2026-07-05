@@ -54,7 +54,7 @@ impl Contract {
     /// 语言探测：scope 声明了具体语言则返回，否则按目录文件推测。
     pub fn resolve_language(&self, scope: &Scope, scope_dir: &Path) -> Language {
         match &scope.language {
-            Language::Unknown(_) => crate::source::language::detect(scope_dir),
+            Language::Unknown(_) => crate::source::config_file::detect_language(scope_dir),
             lang => lang.clone(),
         }
     }

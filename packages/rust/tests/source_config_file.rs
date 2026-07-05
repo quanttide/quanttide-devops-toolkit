@@ -1,4 +1,4 @@
-/// 集成测试：source::config_file — 配置文件版本读取
+/// 集成测试：source::config_file — 语言检测 + 配置文件版本读取
 
 #[test]
 fn test_read_config_versions_integration() {
@@ -75,6 +75,83 @@ version = ""
             .any(|(n, v)| n == "Cargo.toml" && v.is_none())
     );
 }
+
+// ═══════════════════════════════════════════════════════════════════════
+// 语言检测
+// ═══════════════════════════════════════════════════════════════════════
+
+#[test]
+fn test_detect_language_rust() {
+    let d = tempfile::tempdir().unwrap();
+    std::fs::write(d.path().join("Cargo.toml"), "").unwrap();
+    assert_eq!(
+        quanttide_devops::source::config_file::detect_language(d.path()),
+        quanttide_devops::contract::Language::Rust
+    );
+}
+
+#[test]
+fn test_detect_language_unknown() {
+    let d = tempfile::tempdir().unwrap();
+    assert!(matches!(
+        quanttide_devops::source::config_file::detect_language(d.path()),
+        quanttide_devops::contract::Language::Unknown(_)
+    ));
+}
+
+#[test]
+fn test_detect_language_python() {
+    let d = tempfile::tempdir().unwrap();
+    std::fs::write(d.path().join("pyproject.toml"), "").unwrap();
+    assert_eq!(
+        quanttide_devops::source::config_file::detect_language(d.path()),
+        quanttide_devops::contract::Language::Python
+    );
+}
+
+#[test]
+fn test_detect_language_python_requirements() {
+    let d = tempfile::tempdir().unwrap();
+    std::fs::write(d.path().join("requirements.txt"), "").unwrap();
+    assert_eq!(
+        quanttide_devops::source::config_file::detect_language(d.path()),
+        quanttide_devops::contract::Language::Python
+    );
+}
+
+#[test]
+fn test_detect_language_go() {
+    let d = tempfile::tempdir().unwrap();
+    std::fs::write(d.path().join("go.mod"), "").unwrap();
+    assert_eq!(
+        quanttide_devops::source::config_file::detect_language(d.path()),
+        quanttide_devops::contract::Language::Go
+    );
+}
+
+#[test]
+fn test_detect_language_dart() {
+    let d = tempfile::tempdir().unwrap();
+    std::fs::write(d.path().join("pubspec.yaml"), "").unwrap();
+    assert_eq!(
+        quanttide_devops::source::config_file::detect_language(d.path()),
+        quanttide_devops::contract::Language::Dart
+    );
+}
+
+#[test]
+fn test_detect_language_typescript() {
+    let d = tempfile::tempdir().unwrap();
+    std::fs::write(d.path().join("package.json"), "").unwrap();
+    assert_eq!(
+        quanttide_devops::source::config_file::detect_language(d.path()),
+        quanttide_devops::contract::Language::TypeScript
+    );
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// 配置文件版本读取
+// ═══════════════════════════════════════════════════════════════════════
 
 #[test]
 fn test_read_config_versions_yaml_empty_value() {

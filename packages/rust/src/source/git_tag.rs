@@ -7,7 +7,7 @@
 //!
 //! # 架构
 //!
-//! 通过 [`VersionSource`] trait 将 I/O（读取 tag）与业务逻辑（过滤、排序）分离。
+//! 通过 [`TagSource`] trait 将 I/O（读取 tag）与业务逻辑（过滤、排序）分离。
 //!
 //! # 示例
 //!
@@ -44,20 +44,20 @@ impl std::fmt::Display for TagError {
 impl std::error::Error for TagError {}
 
 // ═══════════════════════════════════════════════════════════════════════
-// VersionSource trait
+// TagSource trait
 // ═══════════════════════════════════════════════════════════════════════
 
 /// Tag 列表的抽象来源。
-pub trait VersionSource {
+pub trait TagSource {
     fn all_tags(&self) -> Result<Vec<String>, TagError>;
 }
 
-/// gix 实现的 [`VersionSource`]。
-pub struct GixVersionSource {
+/// gix 实现的 [`TagSource`]。
+pub struct GixTagSource {
     repo_path: PathBuf,
 }
 
-impl GixVersionSource {
+impl GixTagSource {
     pub fn new(path: &Path) -> Self {
         Self {
             repo_path: path.to_path_buf(),
@@ -65,7 +65,7 @@ impl GixVersionSource {
     }
 }
 
-impl VersionSource for GixVersionSource {
+impl TagSource for GixTagSource {
     fn all_tags(&self) -> Result<Vec<String>, TagError> {
         let repo = gix::open(&self.repo_path)
             .map_err(|e| TagError::RepoOpen(format!("{}: {}", self.repo_path.display(), e)))?;
@@ -146,26 +146,26 @@ pub fn filter_tags_by_scope(tags: &[String], scope_name: &str) -> Vec<String> {
 
 /// 获取指定 scope 的最新 tag，标准化后返回。
 pub fn latest_tag(repo_path: &Path, scope_name: &str) -> Result<Option<String>, TagError> {
-    latest_tag_with(&GixVersionSource::new(repo_path), scope_name)
+    latest_tag_with(&GixTagSource::new(repo_path), scope_name)
 }
 
 /// 获取指定 scope 的所有 tag（原始格式）。
 pub fn tags_for_scope(repo_path: &Path, scope_name: &str) -> Result<Vec<String>, TagError> {
-    tags_for_scope_with(&GixVersionSource::new(repo_path), scope_name)
+    tags_for_scope_with(&GixTagSource::new(repo_path), scope_name)
 }
 
-/// 带注入 [`VersionSource`] 的 `latest_tag`。
+/// 带注入 [`TagSource`] 的 `latest_tag`。
 pub fn latest_tag_with(
-    source: &impl VersionSource,
+    source: &impl TagSource,
     scope_name: &str,
 ) -> Result<Option<String>, TagError> {
     let tags = source.all_tags()?;
     Ok(filter_latest_tag(&tags, scope_name))
 }
 
-/// 带注入 [`VersionSource`] 的 `tags_for_scope`。
+/// 带注入 [`TagSource`] 的 `tags_for_scope`。
 pub fn tags_for_scope_with(
-    source: &impl VersionSource,
+    source: &impl TagSource,
     scope_name: &str,
 ) -> Result<Vec<String>, TagError> {
     let tags = source.all_tags()?;
@@ -204,18 +204,18 @@ fn semver_desc(a: &str, b: &str) -> std::cmp::Ordering {
 mod tests {
     use super::*;
 
-    struct MockVersionSource {
+    struct MockTagSource {
         tags: Vec<String>,
     }
 
-    impl VersionSource for MockVersionSource {
+    impl TagSource for MockTagSource {
         fn all_tags(&self) -> Result<Vec<String>, TagError> {
             Ok(self.tags.clone())
         }
     }
 
-    fn mock(tags: &[&str]) -> MockVersionSource {
-        MockVersionSource {
+    fn mock(tags: &[&str]) -> MockTagSource {
+        MockTagSource {
             tags: tags.iter().map(|s| s.to_string()).collect(),
         }
     }

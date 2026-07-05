@@ -1,4 +1,6 @@
-//! 从配置文件读取版本号，作为版本号的事实源之一。
+//! 从配置文件读取事实数据（版本号、语言等）。
+//!
+//! # 版本号
 //!
 //! 支持以下文件格式：
 //!
@@ -9,6 +11,11 @@
 //! | `package.json` | `"version": "..."` JSON |
 //! | `pubspec.yaml` | `version: ...` YAML |
 //!
+//! # 语言检测
+//!
+//! 根据目录下的标志文件推测编程语言，是 `contract::Contract::resolve_language`
+//! 在 scope 未声明语言时的兜底方案。
+//!
 //! # 示例
 //!
 //! ```ignore
@@ -16,9 +23,44 @@
 //! let versions = read_config_versions(scope_dir);
 //! ```
 
+use crate::contract::Language;
+
 use std::path::Path;
 
 type VersionExtract = fn(&str) -> Option<String>;
+
+// ═══════════════════════════════════════════════════════════════════════
+// 语言检测
+// ═══════════════════════════════════════════════════════════════════════
+
+/// 根据目录下的标志文件推测编程语言。
+///
+/// ```
+/// use std::path::Path;
+/// use quanttide_devops::source::config_file::detect_language;
+///
+/// let lang = detect_language(Path::new("/tmp/nonexistent"));
+/// assert!(matches!(lang, quanttide_devops::contract::Language::Unknown(_)));
+/// ```
+pub fn detect_language(dir: &Path) -> Language {
+    if dir.join("Cargo.toml").exists() {
+        Language::Rust
+    } else if dir.join("pyproject.toml").exists() || dir.join("requirements.txt").exists() {
+        Language::Python
+    } else if dir.join("go.mod").exists() {
+        Language::Go
+    } else if dir.join("pubspec.yaml").exists() {
+        Language::Dart
+    } else if dir.join("package.json").exists() {
+        Language::TypeScript
+    } else {
+        Language::Unknown("无法识别".into())
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// 版本号读取
+// ═══════════════════════════════════════════════════════════════════════
 
 /// 读取目录下所有已知配置文件的版本号。
 ///
@@ -100,8 +142,61 @@ fn extract_kv_yaml_version(content: &str) -> Option<String> {
 }
 
 #[cfg(test)]
+#[cfg(test)]
 mod tests {
     use super::*;
+
+    // ── 语言检测 ──────────────────────────────────────────────
+
+    #[test]
+    fn test_detect_language_rust() {
+        let d = tempfile::tempdir().unwrap();
+        std::fs::write(d.path().join("Cargo.toml"), "").unwrap();
+        assert_eq!(detect_language(d.path()), Language::Rust);
+    }
+
+    #[test]
+    fn test_detect_language_unknown() {
+        let d = tempfile::tempdir().unwrap();
+        assert!(matches!(detect_language(d.path()), Language::Unknown(_)));
+    }
+
+    #[test]
+    fn test_detect_language_python() {
+        let d = tempfile::tempdir().unwrap();
+        std::fs::write(d.path().join("pyproject.toml"), "").unwrap();
+        assert_eq!(detect_language(d.path()), Language::Python);
+    }
+
+    #[test]
+    fn test_detect_language_python_requirements() {
+        let d = tempfile::tempdir().unwrap();
+        std::fs::write(d.path().join("requirements.txt"), "").unwrap();
+        assert_eq!(detect_language(d.path()), Language::Python);
+    }
+
+    #[test]
+    fn test_detect_language_go() {
+        let d = tempfile::tempdir().unwrap();
+        std::fs::write(d.path().join("go.mod"), "").unwrap();
+        assert_eq!(detect_language(d.path()), Language::Go);
+    }
+
+    #[test]
+    fn test_detect_language_dart() {
+        let d = tempfile::tempdir().unwrap();
+        std::fs::write(d.path().join("pubspec.yaml"), "").unwrap();
+        assert_eq!(detect_language(d.path()), Language::Dart);
+    }
+
+    #[test]
+    fn test_detect_language_typescript() {
+        let d = tempfile::tempdir().unwrap();
+        std::fs::write(d.path().join("package.json"), "").unwrap();
+        assert_eq!(detect_language(d.path()), Language::TypeScript);
+    }
+
+    // ── 版本号提取 ────────────────────────────────────────────
 
     #[test]
     fn test_extract_kv_version_found() {
