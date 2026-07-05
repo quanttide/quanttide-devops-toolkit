@@ -3,25 +3,20 @@
 ## [0.2.0] - 2026-07-05
 
 ### Added
+
+- `VersionSource` trait（原 `TagSource`）
+- `source::language` 模块
+- 35 个单元测试覆盖纯逻辑全分支
+- 7 个集成测试覆盖 I/O 边界
+- 10 个版本号异常场景测试（pre-release、build metadata、大写 V）
 - 新增 pre_publish 配置（package archetype）
-
-### Changed
-- 重构源代码版本管理模块：合并 language 到 config_file，重命名 VersionSource 为 TagSource，分解 version 为 git_tag 和 config_file，迁移 git 后端至 gix，集成 semver 并调整相关测试
-- 模块边界清理，完成 SourceType 接线及 verify_version 重命名，移动 read_config_versions 至 source::version
-- 添加 GitSubmoduleEditor 及 submodule 示例，更新文档以反映 gix 优先的混合策略
-- 将默认测试阈值从 70% 提升至 80%，清理完成的路标项
-
-### Removed
-- 移除 contract.yaml（功能已由 auto-detect 覆盖）
-
-## [0.2.0-alpha.1] - 2026-07-05
 
 ### Changed
 
 - **破坏性重构**：`source::git` → `source::git_tag` + `source::config_file`，职责分离
 - **破坏性重构**：`version_status` → `verify_version`，移至 `contract::version`
 - **破坏性重构**：`VersionStatus` → `VersionState`，命名反映多字段快照语义
-- **破坏性重构**：`detect_language_by_files` → `source::language::detect`
+- **破坏性重构**：`detect_language_by_files` → `source::config_file::detect_language`
 - **破坏性重构**：`read_all_config_versions` → `source::config_file::read_config_versions`
 - **破坏性重构**：`VersionSourceError` → `TagError`
 - git tag 读取从 `git2` 迁移至 `gix`（快 14x）
@@ -29,14 +24,8 @@
 - `Contract::load()` 现在展开 `Auto` → `SourceType::detect()`
 - 测试文件按模块一一对应拆分（contract_* / source_*）
 - 所有测试零 CLI git 依赖
-
-### Added
-
-- `VersionSource` trait（原 `TagSource`）
-- `source::language` 模块
-- 35 个单元测试覆盖纯逻辑全分支
-- 7 个集成测试覆盖 I/O 边界
-- 10 个版本号异常场景测试（pre-release、build metadata、大写 V）
+- 将默认测试阈值从 70% 提升至 80%
+- 添加 GitSubmoduleEditor 及 submodule 示例，更新文档以反映 gix 优先的混合策略
 
 ## [0.1.5] - 2026-07-03
 
