@@ -288,4 +288,30 @@ mod tests {
     fn test_build_tool_default() {
         assert_eq!(BuildTool::default(), BuildTool::Unknown("auto".into()));
     }
+
+    #[test]
+    fn test_language_default_build_tool() {
+        assert_eq!(Language::Rust.default_build_tool(), BuildTool::Cargo);
+        assert_eq!(Language::Python.default_build_tool(), BuildTool::Uv);
+        assert_eq!(Language::Go.default_build_tool(), BuildTool::Go);
+        assert_eq!(Language::Dart.default_build_tool(), BuildTool::Flutter);
+        assert_eq!(Language::TypeScript.default_build_tool(), BuildTool::Npm);
+        assert!(matches!(
+            Language::Unknown("x".into()).default_build_tool(),
+            BuildTool::Unknown(_)
+        ));
+    }
+
+    #[test]
+    fn test_language_default_registry() {
+        assert_eq!(Language::Rust.default_registry(), Registry::Crates);
+        assert_eq!(Language::Python.default_registry(), Registry::PyPI);
+        assert_eq!(Language::Go.default_registry(), Registry::GitHubReleases);
+        assert_eq!(Language::Dart.default_registry(), Registry::PubDev);
+        assert_eq!(Language::TypeScript.default_registry(), Registry::Npm);
+        assert_eq!(
+            Language::Unknown("x".into()).default_registry(),
+            Registry::None
+        );
+    }
 }
