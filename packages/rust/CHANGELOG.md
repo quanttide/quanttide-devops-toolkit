@@ -1,5 +1,20 @@
 # CHANGELOG
 
+## [0.2.2] - 2026-07-06
+
+### Added
+
+- `source::config_file::detect_languages(dir) -> Vec<Language>` — 独立检测目录下所有编程语言
+
+### Changed
+
+- `Contract::resolve_language()` / `auto_detect()` 内部改用 `detect_languages`
+- `detect_language()` 标记为 `#[deprecated]`
+
+### Fixed
+
+- 示例和集成测试统一加 `#[allow(deprecated)]`，消除编译警告
+
 ## [0.2.1] - 2026-07-05
 
 ### Added
