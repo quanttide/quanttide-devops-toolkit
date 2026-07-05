@@ -9,14 +9,14 @@ pub mod source;
 pub mod stage;
 pub mod version;
 
-pub use core::{Contract, detect_language_by_files};
+pub use core::Contract;
 pub use error::ContractError;
 pub use platform::{Pipeline, Platform, Registry, SourceControl};
 pub use scope::{BuildTool, Language, Scope};
 pub use source::{Source, SourceType};
 pub use stage::{Stage, StageBuild, StageRelease, StageTest};
 pub use version::{
-    VersionStatus, check_version_consistency, normalize_version, validate_version, verify_version,
+    VersionState, check_version_consistency, normalize_version, validate_version, verify_version,
 };
 
 use std::path::Path;
@@ -25,7 +25,12 @@ use std::path::Path;
 pub fn load(repo_path: &Path) -> Result<Contract, ContractError> {
     let path = repo_path.join(".quanttide/devops/contract.yaml");
     let content = std::fs::read_to_string(&path)?;
-    load_from_str(&content)
+    let mut contract: Contract = load_from_str(&content)?;
+    // Auto 类型展开为具体类型
+    if contract.sources.version.source_type == SourceType::Auto {
+        contract.sources.version.source_type = SourceType::detect(repo_path);
+    }
+    Ok(contract)
 }
 
 /// 从 YAML 字符串解析契约。

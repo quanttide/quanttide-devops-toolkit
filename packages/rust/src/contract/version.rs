@@ -86,11 +86,13 @@ pub fn normalize_version(version: &str) -> String {
 // 版本一致性规则
 // ═══════════════════════════════════════════════════════════════════════
 
-/// Tag 版本与配置文件版本的一致性检查结果。
+/// 版本信息快照（State）：记录两个事实源的版本信息及一致性结论。
 ///
-/// 由 `check_version_consistency` 产生，记录双方原始值和比对结论。
+/// 调用 `verify_version` 后得到一个快照，`consistent` 字段是核心判断结果。
+/// 之所以不叫 `VersionStatus`，是因为结构体包含多个字段（版本信息），
+/// 而不只是一个单一布尔值。`consistent` 字段才是真正的状态值。
 #[derive(Debug)]
-pub struct VersionStatus {
+pub struct VersionState {
     /// 最新 git tag 的版本号（已标准化，去 `v` 前缀和 scope 前缀）。
     pub tag_version: Option<String>,
     /// 配置文件中找到的第一个非空版本号。
@@ -148,11 +150,11 @@ pub fn check_version_consistency(
 ///
 /// 组合两个事实源（[`source::git_tag::latest_tag`] 和
 /// [`source::config_file::read_config_versions`]），应用一致性规则，
-/// 返回 [`VersionStatus`]。
+/// 返回 [`VersionState`]。
 pub fn verify_version(
     repo_path: &Path,
     scope: &Scope,
-) -> Result<VersionStatus, Box<dyn std::error::Error>> {
+) -> Result<VersionState, Box<dyn std::error::Error>> {
     let tag_version = crate::source::git_tag::latest_tag(repo_path, &scope.name)?;
     let scope_dir = repo_path.join(&scope.dir);
     let config_files = crate::source::config_file::read_config_versions(&scope_dir);
@@ -161,7 +163,7 @@ pub fn verify_version(
         .find(|(_, v)| v.is_some())
         .and_then(|(_, v)| v.clone());
     let consistent = check_version_consistency(tag_version.as_deref(), &config_files);
-    Ok(VersionStatus {
+    Ok(VersionState {
         tag_version,
         config_version,
         consistent,

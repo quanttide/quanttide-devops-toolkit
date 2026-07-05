@@ -54,7 +54,7 @@ impl Contract {
     /// 语言探测：scope 声明了具体语言则返回，否则按目录文件推测。
     pub fn resolve_language(&self, scope: &Scope, scope_dir: &Path) -> Language {
         match &scope.language {
-            Language::Unknown(_) => detect_language_by_files(scope_dir),
+            Language::Unknown(_) => crate::source::language::detect(scope_dir),
             lang => lang.clone(),
         }
     }
@@ -83,25 +83,9 @@ impl Contract {
     }
 }
 
-/// 根据目录下的标志文件推测编程语言。
-pub fn detect_language_by_files(dir: &Path) -> Language {
-    if dir.join("Cargo.toml").exists() {
-        Language::Rust
-    } else if dir.join("pyproject.toml").exists() || dir.join("requirements.txt").exists() {
-        Language::Python
-    } else if dir.join("go.mod").exists() {
-        Language::Go
-    } else if dir.join("pubspec.yaml").exists() {
-        Language::Dart
-    } else if dir.join("package.json").exists() {
-        Language::TypeScript
-    } else {
-        Language::Unknown("无法识别".into())
-    }
-}
-
 // ═══════════════════════════════════════════════════════════════════════
 // 测试
+// ═══════════════════════════════════════════════════════════════════════
 // ═══════════════════════════════════════════════════════════════════════
 
 #[cfg(test)]
@@ -394,21 +378,5 @@ scopes:
         );
         let lang = c.resolve_language(&c.scopes[0], d.path());
         assert_eq!(lang, Language::Rust);
-    }
-
-    // ── detect_language_by_files ──────────────────────────────────
-
-    #[test]
-    fn test_detect_by_files() {
-        let d = tempfile::tempdir().unwrap();
-        assert_eq!(
-            detect_language_by_files(d.path()),
-            Language::Unknown("无法识别".into())
-        );
-        std::fs::write(d.path().join("Cargo.toml"), "").unwrap();
-        assert_eq!(detect_language_by_files(d.path()), Language::Rust);
-        std::fs::write(d.path().join("go.mod"), "").unwrap();
-        // Cargo.toml 优先（顺序检测）
-        assert_eq!(detect_language_by_files(d.path()), Language::Rust);
     }
 }
