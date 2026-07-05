@@ -127,6 +127,7 @@ impl Roadmap {
     /// - `## [版本号] — 状态` 作为版本边界
     /// - `### 分类` 作为类别分组（Added / Fixed / Changed 等）
     /// - `- [ ] 描述` 为待办条目，`- [x] 描述` 为已完成
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Result<Self, RoadmapError> {
         let lines: Vec<&str> = s.lines().collect();
         if lines.is_empty() {
@@ -172,7 +173,11 @@ impl Roadmap {
             } else if let Some(ref mut builder) = current_version {
                 if trimmed.starts_with("### ") {
                     // 新分类
-                    let category = trimmed[4..].trim().to_string();
+                    let category = trimmed
+                        .strip_prefix("### ")
+                        .unwrap_or("")
+                        .trim()
+                        .to_string();
                     builder.add_category(category);
                 } else if trimmed.starts_with("- [") && trimmed.len() > 5 {
                     // checklist 条目：`- [ ]` 或 `- [x]`
@@ -238,36 +243,36 @@ impl Roadmap {
     /// `scope` 参数用于标记问题所属范围（通常传入 scope name）。
     pub fn validate(&self, scope: &str) -> Vec<RoadmapIssue> {
         let mut issues = Vec::new();
-        let mut line_number: usize = 1;
         let lines: Vec<&str> = self.raw.lines().collect();
 
-        for line in &lines {
+        for (line_number, line) in lines.iter().enumerate() {
             let trimmed = line.trim();
+            let line_number = line_number + 1;
 
             // 检查版本号格式（`## [0.1.0]` 或 `## [v0.1.0]`）
-            if trimmed.starts_with("## [") {
-                if let Some(end) = trimmed.find(']') {
-                    let raw_version = &trimmed[4..end];
-                    // 去 v 前缀后验证 X.Y.Z 格式
-                    let clean = raw_version.strip_prefix('v').unwrap_or(raw_version);
-                    let parts: Vec<&str> = clean.split('.').collect();
-                    if parts.len() != 3
-                        || parts
-                            .iter()
-                            .any(|p| p.is_empty() || !p.chars().all(|c| c.is_ascii_digit()))
-                    {
-                        issues.push(RoadmapIssue {
-                            line: line_number,
-                            scope: scope.to_string(),
-                            message: format!("版本号格式异常（期待 `X.Y.Z`）: `{}`", raw_version),
-                        });
-                    }
+            if trimmed.starts_with("## [")
+                && let Some(end) = trimmed.find(']')
+            {
+                let raw_version = &trimmed[4..end];
+                // 去 v 前缀后验证 X.Y.Z 格式
+                let clean = raw_version.strip_prefix('v').unwrap_or(raw_version);
+                let parts: Vec<&str> = clean.split('.').collect();
+                if parts.len() != 3
+                    || parts
+                        .iter()
+                        .any(|p| p.is_empty() || !p.chars().all(|c| c.is_ascii_digit()))
+                {
+                    issues.push(RoadmapIssue {
+                        line: line_number,
+                        scope: scope.to_string(),
+                        message: format!("版本号格式异常（期待 `X.Y.Z`）: `{}`", raw_version),
+                    });
                 }
             }
 
             // 检查分类标题的标准大小写
             if trimmed.starts_with("### ") {
-                let category = trimmed[4..].trim();
+                let category = trimmed.strip_prefix("### ").unwrap_or("").trim();
                 let expected = category_expected_case(category);
                 if category != expected {
                     issues.push(RoadmapIssue {
@@ -295,8 +300,6 @@ impl Roadmap {
                     });
                 }
             }
-
-            line_number += 1;
         }
 
         issues

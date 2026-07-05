@@ -1,5 +1,31 @@
 # CHANGELOG
 
+## [0.2.1] - 2026-07-05
+
+### Added
+
+- `Language::default_build_tool()` — Language → BuildTool 映射
+- `Language::default_registry()` — Language → Registry 映射
+- `Contract::auto_detect(repo_path)` — 扫描 `src/`、`packages/`、`apps/` 自动生成契约
+- `contract::load_or_default(repo_path)` — load 失败则 auto_detect
+- `Contract::resolve_language()` — scope 语言声明兜底探测
+- 36 个补充测试（auto_detect 集成、Language 默认方法、semver 边界、RoadmapError display）
+
+### Changed
+
+- 测试覆盖率提升至 99.05%（519/524）
+- 示例 `contract.rs` 从 164 行缩减至 63 行，利用新 API
+- CI workflow 统一命名：`publish-*` / `test-*` → `release-*`
+- `release-rust.yml`：合并 check（测试+覆盖率）→ release（cargo publish）
+
+### Fixed
+
+- 6 个 clippy warning（`should_implement_trait`、`manual_strip`、`collapsible_if`、`loop_counter`）
+
+### Removed
+
+- `examples/git_submodule.rs`（git2 示例，逻辑已进入实验室阶段）
+
 ## [0.2.0] - 2026-07-05
 
 ### Added

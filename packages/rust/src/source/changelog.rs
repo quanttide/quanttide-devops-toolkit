@@ -59,6 +59,7 @@ impl Changelog {
     }
 
     /// 从字符串解析 CHANGELOG。
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Result<Self, ChangelogError> {
         let raw = s.to_string();
         // Safety: inner 的 &str 引用指向 raw。
