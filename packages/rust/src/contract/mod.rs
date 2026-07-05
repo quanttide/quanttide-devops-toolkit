@@ -33,6 +33,11 @@ pub fn load(repo_path: &Path) -> Result<Contract, ContractError> {
     Ok(contract)
 }
 
+/// 加载契约，不存在时自动推测。
+pub fn load_or_default(repo_path: &Path) -> Contract {
+    load(repo_path).unwrap_or_else(|_| Contract::auto_detect(repo_path))
+}
+
 /// 从 YAML 字符串解析契约。
 pub fn load_from_str(s: &str) -> Result<Contract, ContractError> {
     serde_yaml::from_str::<Contract>(s).map_err(|e| ContractError::Parse(e.to_string()))

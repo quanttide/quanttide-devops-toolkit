@@ -81,6 +81,89 @@ impl Contract {
         }
         errors
     }
+
+    /// 根据目录下的配置文件自动推测仓库结构，生成契约。
+    ///
+    /// 扫描 `src/`、`packages/`、`apps/` 下的子目录，检测每个子目录的编程语言并创建 scope。
+    /// 如果根目录也存在已知配置文件，添加一个 `(root)` scope。
+    ///
+    /// ```
+    /// use std::path::Path;
+    /// use quanttide_devops::contract::Contract;
+    ///
+    /// let c = Contract::auto_detect(Path::new("/tmp/nonexistent"));
+    /// assert!(c.scopes.is_empty());
+    /// ```
+    pub fn auto_detect(repo_path: &Path) -> Self {
+        let root_lang = crate::source::config_file::detect_language(repo_path);
+
+        let mut scopes: Vec<Scope> = Vec::new();
+        for base in &["src", "packages", "apps"] {
+            let base_dir = repo_path.join(base);
+            if !base_dir.is_dir() {
+                continue;
+            }
+            if let Ok(entries) = std::fs::read_dir(&base_dir) {
+                for entry in entries.flatten() {
+                    let sub = entry.path();
+                    if !sub.is_dir() {
+                        continue;
+                    }
+                    let name = match sub.file_name() {
+                        Some(n) => n.to_string_lossy().to_string(),
+                        None => continue,
+                    };
+                    let sub_lang = crate::source::config_file::detect_language(&sub);
+                    if matches!(sub_lang, Language::Unknown(_)) {
+                        continue;
+                    }
+                    scopes.push(Scope {
+                        name,
+                        dir: format!("{}/{}", base, &sub.file_name().unwrap().to_string_lossy()),
+                        language: sub_lang.clone(),
+                        build_tool: sub_lang.default_build_tool(),
+                        framework: String::new(),
+                        registry: sub_lang.default_registry(),
+                        release: StageRelease::default(),
+                        test_threshold: None,
+                        ci_workflow: None,
+                    });
+                }
+            }
+        }
+
+        if !matches!(root_lang, Language::Unknown(_)) {
+            scopes.insert(
+                0,
+                Scope {
+                    name: "(root)".into(),
+                    dir: ".".into(),
+                    language: root_lang.clone(),
+                    build_tool: root_lang.default_build_tool(),
+                    framework: String::new(),
+                    registry: root_lang.default_registry(),
+                    release: StageRelease::default(),
+                    test_threshold: None,
+                    ci_workflow: None,
+                },
+            );
+        }
+
+        Self {
+            stages: Stage {
+                build: StageBuild {
+                    command: Some("cargo build".into()),
+                },
+                test: StageTest {
+                    command: Some("cargo test".into()),
+                    ..StageTest::default()
+                },
+                release: StageRelease::default(),
+            },
+            scopes,
+            ..Self::default()
+        }
+    }
 }
 
 // ═══════════════════════════════════════════════════════════════════════
