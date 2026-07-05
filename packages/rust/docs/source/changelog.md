@@ -6,13 +6,13 @@
 ## 定位
 
 `source/changelog.rs` 是"事实源"维度的 CHANGELOG 实现模块。
-与 `source/git.rs`（git tag）、`contract/version.rs`（配置文件版本）平级，
+与 `source/version.rs`（git tag）、`contract/version.rs`（配置文件版本）平级
 共同覆盖"版本发布记录从哪里读"的场景：
 
 | 模块 | 读取目标 | 依赖 |
 |------|---------|------|
 | `contract/version.rs` | Cargo.toml / pyproject.toml / ... | 无 |
-| `source/git.rs` | Git tag | `git2` |
+| `source/version.rs` | Git tag 版本 | `gix` + `semver` |
 | `source/changelog.rs` | CHANGELOG.md（Keep a Changelog 格式） | `parse-changelog` |
 
 ## 选型：parse-changelog

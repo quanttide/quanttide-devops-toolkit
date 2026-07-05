@@ -1,21 +1,21 @@
-//! Git tag 读取与版本一致性检查。
+//! 将 Git tag 作为版本号的事实源。
 //!
 //! 按 scope 前缀从 git tag 中读取版本号，并与配置文件版本对比一致性。
 //!
 //! # 架构
 //!
-//! 通过 [`TagSource`] trait 将 I/O（读取 tag 列表）与业务逻辑（过滤、排序、一致性判断）分离：
+//! 通过 [`VersionSource`] trait 将 I/O（读取 tag 列表）与业务逻辑（过滤、排序、一致性判断）分离：
 //!
 //! - [`filter_latest_tag`]、[`filter_tags_by_scope`]、[`check_version_consistency`] 是纯函数，
 //!   输入输出都是内存数据，可单元测试。
-//! - [`GixTagSource`] 是 `TagSource` 的 gix 实现，负责真实仓库读取。
-//! - [`latest_tag`]、[`tags_for_scope`] 是便捷函数，内部使用 `GixTagSource`。
-//! - [`latest_tag_with`]、[`tags_for_scope_with`] 接受泛型 `TagSource`，可在测试中注入 mock。
+//! - [`GixVersionSource`] 是 `VersionSource` 的 gix 实现，负责真实仓库读取。
+//! - [`latest_tag`]、[`tags_for_scope`] 是便捷函数，内部使用 `GixVersionSource`。
+//! - [`latest_tag_with`]、[`tags_for_scope_with`] 接受泛型 `VersionSource`，可在测试中注入 mock。
 //!
 //! # 示例
 //!
 //! ```ignore
-//! use quanttide_devops::source::git_tag::latest_tag;
+//! use quanttide_devops::source::version::latest_tag;
 //!
 //! let tag = latest_tag(repo_path, "cli")?;
 //! println!("latest cli version: {:?}", tag);
@@ -32,14 +32,14 @@ use crate::contract::version::{normalize_version, read_all_config_versions};
 
 /// Git 源操作错误。
 #[derive(Debug)]
-pub enum TagSourceError {
+pub enum VersionSourceError {
     /// 仓库打开失败。包含路径和错误原因。
     RepoOpen(String),
     /// gix 内部错误。
     Gix(String),
 }
 
-impl std::fmt::Display for TagSourceError {
+impl std::fmt::Display for VersionSourceError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::RepoOpen(p) => write!(f, "无法打开仓库: {}", p),
@@ -48,29 +48,29 @@ impl std::fmt::Display for TagSourceError {
     }
 }
 
-impl std::error::Error for TagSourceError {}
+impl std::error::Error for VersionSourceError {}
 
 // ═══════════════════════════════════════════════════════════════════════
-// TagSource trait — I/O 边界
+// VersionSource trait — I/O 边界
 // ═══════════════════════════════════════════════════════════════════════
 
 /// Tag 列表的抽象来源。
 ///
 /// 实现者提供 tag 名称列表，消费方（[`filter_latest_tag`] 等）只依赖此 trait，
 /// 不依赖真实 git 仓库。
-pub trait TagSource {
+pub trait VersionSource {
     /// 返回仓库中所有 tag 的名称列表。
-    fn all_tags(&self) -> Result<Vec<String>, TagSourceError>;
+    fn all_tags(&self) -> Result<Vec<String>, VersionSourceError>;
 }
 
-/// gix 实现的 [`TagSource`]。
+/// gix 实现的 [`VersionSource`]。
 ///
 /// 从 gix 仓库中读取 `refs/tags/` 下的所有引用，去掉前缀后返回。
-pub struct GixTagSource {
+pub struct GixVersionSource {
     repo_path: PathBuf,
 }
 
-impl GixTagSource {
+impl GixVersionSource {
     /// 创建一个新的 gix tag 源，指向 `path` 路径的仓库。
     pub fn new(path: &Path) -> Self {
         Self {
@@ -79,17 +79,17 @@ impl GixTagSource {
     }
 }
 
-impl TagSource for GixTagSource {
-    fn all_tags(&self) -> Result<Vec<String>, TagSourceError> {
+impl VersionSource for GixVersionSource {
+    fn all_tags(&self) -> Result<Vec<String>, VersionSourceError> {
         let repo = gix::open(&self.repo_path).map_err(|e| {
-            TagSourceError::RepoOpen(format!("{}: {}", self.repo_path.display(), e))
+            VersionSourceError::RepoOpen(format!("{}: {}", self.repo_path.display(), e))
         })?;
         let refs = repo
             .references()
-            .map_err(|e| TagSourceError::Gix(e.to_string()))?;
+            .map_err(|e| VersionSourceError::Gix(e.to_string()))?;
         let iter = refs
             .prefixed("refs/tags")
-            .map_err(|e| TagSourceError::Gix(e.to_string()))?;
+            .map_err(|e| VersionSourceError::Gix(e.to_string()))?;
         Ok(iter
             .filter_map(|r| r.ok())
             .filter_map(|r| {
@@ -115,7 +115,7 @@ impl TagSource for GixTagSource {
 /// # 示例
 ///
 /// ```
-/// use quanttide_devops::source::git_tag::filter_latest_tag;
+/// use quanttide_devops::source::version::filter_latest_tag;
 ///
 /// let tags = vec!["cli/v0.2.0".into(), "cli/v0.1.0".into(), "v1.0.0".into()];
 /// assert_eq!(filter_latest_tag(&tags, "cli"), Some("0.2.0".into()));
@@ -158,7 +158,7 @@ pub fn filter_latest_tag(tags: &[String], scope_name: &str) -> Option<String> {
 /// # 示例
 ///
 /// ```
-/// use quanttide_devops::source::git_tag::filter_tags_by_scope;
+/// use quanttide_devops::source::version::filter_tags_by_scope;
 ///
 /// let tags = vec!["cli/v0.1.0".into(), "studio/v0.2.0".into()];
 /// assert_eq!(filter_tags_by_scope(&tags, "cli"), vec!["cli/v0.1.0"]);
@@ -181,7 +181,7 @@ pub fn filter_tags_by_scope(tags: &[String], scope_name: &str) -> Vec<String> {
 /// # 示例
 ///
 /// ```
-/// use quanttide_devops::source::git_tag::check_version_consistency;
+/// use quanttide_devops::source::version::check_version_consistency;
 ///
 /// // 一致
 /// assert!(check_version_consistency(
@@ -240,23 +240,26 @@ pub struct VersionStatus {
 
 /// 获取指定 scope 的最新 tag，标准化后返回。
 ///
-/// 内部使用 [`GixTagSource`]，从真实仓库读取。
+/// 内部使用 [`GixVersionSource`]，从真实仓库读取。
 ///
 /// scope 匹配规则见 [`filter_latest_tag`]。
 ///
 /// # 错误
 ///
-/// - 仓库不存在或无法打开 → `TagSourceError::RepoOpen`
-/// - gix 读取失败 → `TagSourceError::Gix`
+/// - 仓库不存在或无法打开 → `VersionSourceError::RepoOpen`
+/// - gix 读取失败 → `VersionSourceError::Gix`
 ///
 /// # 示例
 ///
 /// ```ignore
-/// use quanttide_devops::source::git_tag::latest_tag;
+/// use quanttide_devops::source::version::latest_tag;
 /// let tag = latest_tag("/some/repo".as_ref(), "cli")?;
 /// ```
-pub fn latest_tag(repo_path: &Path, scope_name: &str) -> Result<Option<String>, TagSourceError> {
-    latest_tag_with(&GixTagSource::new(repo_path), scope_name)
+pub fn latest_tag(
+    repo_path: &Path,
+    scope_name: &str,
+) -> Result<Option<String>, VersionSourceError> {
+    latest_tag_with(&GixVersionSource::new(repo_path), scope_name)
 }
 
 /// 获取指定 scope 的所有 tag（原始格式，未标准化）。
@@ -264,25 +267,28 @@ pub fn latest_tag(repo_path: &Path, scope_name: &str) -> Result<Option<String>, 
 /// # 示例
 ///
 /// ```ignore
-/// use quanttide_devops::source::git_tag::tags_for_scope;
+/// use quanttide_devops::source::version::tags_for_scope;
 /// let tags = tags_for_scope("/some/repo".as_ref(), "cli")?;
 /// ```
-pub fn tags_for_scope(repo_path: &Path, scope_name: &str) -> Result<Vec<String>, TagSourceError> {
-    tags_for_scope_with(&GixTagSource::new(repo_path), scope_name)
+pub fn tags_for_scope(
+    repo_path: &Path,
+    scope_name: &str,
+) -> Result<Vec<String>, VersionSourceError> {
+    tags_for_scope_with(&GixVersionSource::new(repo_path), scope_name)
 }
 
-/// 带注入 [`TagSource`] 的 `latest_tag`。
+/// 带注入 [`VersionSource`] 的 `latest_tag`。
 ///
 /// 可在测试中注入 mock，无需真实 git 仓库。
 ///
 /// # 示例
 ///
 /// ```
-/// use quanttide_devops::source::git_tag::{latest_tag_with, TagSource, TagSourceError};
+/// use quanttide_devops::source::version::{latest_tag_with, VersionSource, VersionSourceError};
 ///
 /// struct Mock(&'static [&'static str]);
-/// impl TagSource for Mock {
-///     fn all_tags(&self) -> Result<Vec<String>, TagSourceError> {
+/// impl VersionSource for Mock {
+///     fn all_tags(&self) -> Result<Vec<String>, VersionSourceError> {
 ///         Ok(self.0.iter().map(|s| s.to_string()).collect())
 ///     }
 /// }
@@ -291,23 +297,23 @@ pub fn tags_for_scope(repo_path: &Path, scope_name: &str) -> Result<Vec<String>,
 /// assert_eq!(latest_tag_with(&source, "cli").unwrap(), Some("0.2.0".into()));
 /// ```
 pub fn latest_tag_with(
-    source: &impl TagSource,
+    source: &impl VersionSource,
     scope_name: &str,
-) -> Result<Option<String>, TagSourceError> {
+) -> Result<Option<String>, VersionSourceError> {
     let tags = source.all_tags()?;
     Ok(filter_latest_tag(&tags, scope_name))
 }
 
-/// 带注入 [`TagSource`] 的 `tags_for_scope`。
+/// 带注入 [`VersionSource`] 的 `tags_for_scope`。
 ///
 /// # 示例
 ///
 /// ```
-/// use quanttide_devops::source::git_tag::{tags_for_scope_with, TagSource, TagSourceError};
+/// use quanttide_devops::source::version::{tags_for_scope_with, VersionSource, VersionSourceError};
 ///
 /// struct Mock(&'static [&'static str]);
-/// impl TagSource for Mock {
-///     fn all_tags(&self) -> Result<Vec<String>, TagSourceError> {
+/// impl VersionSource for Mock {
+///     fn all_tags(&self) -> Result<Vec<String>, VersionSourceError> {
 ///         Ok(self.0.iter().map(|s| s.to_string()).collect())
 ///     }
 /// }
@@ -316,9 +322,9 @@ pub fn latest_tag_with(
 /// assert_eq!(tags_for_scope_with(&source, "cli").unwrap(), vec!["cli/v0.1.0"]);
 /// ```
 pub fn tags_for_scope_with(
-    source: &impl TagSource,
+    source: &impl VersionSource,
     scope_name: &str,
-) -> Result<Vec<String>, TagSourceError> {
+) -> Result<Vec<String>, VersionSourceError> {
     let tags = source.all_tags()?;
     Ok(filter_tags_by_scope(&tags, scope_name))
 }
@@ -330,7 +336,7 @@ pub fn tags_for_scope_with(
 /// # 示例
 ///
 /// ```ignore
-/// use quanttide_devops::source::git_tag::version_status;
+/// use quanttide_devops::source::version::version_status;
 /// use quanttide_devops::contract::Scope;
 ///
 /// let scope = Scope {
@@ -340,7 +346,10 @@ pub fn tags_for_scope_with(
 /// let status = version_status("/some/repo".as_ref(), &scope)?;
 /// println!("consistent: {}", status.consistent);
 /// ```
-pub fn version_status(repo_path: &Path, scope: &Scope) -> Result<VersionStatus, TagSourceError> {
+pub fn version_status(
+    repo_path: &Path,
+    scope: &Scope,
+) -> Result<VersionStatus, VersionSourceError> {
     let tag_version = latest_tag(repo_path, &scope.name)?;
     let scope_dir = repo_path.join(&scope.dir);
     let config_files = read_all_config_versions(&scope_dir);
@@ -358,30 +367,30 @@ pub fn version_status(repo_path: &Path, scope: &Scope) -> Result<VersionStatus, 
 }
 
 // ═══════════════════════════════════════════════════════════════════════
-// semver 比较（内联，不引入 semver crate）
+// semver 比较（基于 semver crate）
 // ═══════════════════════════════════════════════════════════════════════
 
-fn parse_semver(tag: &str) -> (u64, u64, u64) {
+/// 从 tag 字符串中解析出 `semver::Version`。
+/// 自动去除 scope 前缀（`cli/`）和 `v` 前缀。
+fn parse_semver_tag(tag: &str) -> Option<semver::Version> {
     let after_scope = tag.split('/').next_back().unwrap_or(tag);
-    let ver = after_scope.strip_prefix('v').unwrap_or(after_scope);
-    let parts: Vec<&str> = ver.split('.').collect();
-    if parts.len() < 3 {
-        return (0, 0, 0);
-    }
-    let major = parts[0].parse().unwrap_or(0);
-    let minor = parts[1].parse().unwrap_or(0);
-    let patch_str: String = parts[2]
-        .chars()
-        .take_while(|c| c.is_ascii_digit())
-        .collect();
-    let patch = patch_str.parse().unwrap_or(0);
-    (major, minor, patch)
+    let ver = after_scope
+        .strip_prefix('v')
+        .or_else(|| after_scope.strip_prefix('V'))
+        .unwrap_or(after_scope);
+    semver::Version::parse(ver).ok()
 }
 
+/// 降序比较两个 tag 的版本。用于 `sort_by`。
 fn semver_desc(a: &str, b: &str) -> std::cmp::Ordering {
-    let va = parse_semver(a);
-    let vb = parse_semver(b);
-    vb.cmp(&va)
+    let va = parse_semver_tag(a);
+    let vb = parse_semver_tag(b);
+    match (va, vb) {
+        (Some(a), Some(b)) => b.cmp(&a),
+        (Some(_), None) => std::cmp::Ordering::Less,
+        (None, Some(_)) => std::cmp::Ordering::Greater,
+        (None, None) => std::cmp::Ordering::Equal,
+    }
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -392,18 +401,18 @@ fn semver_desc(a: &str, b: &str) -> std::cmp::Ordering {
 mod tests {
     use super::*;
 
-    struct MockTagSource {
+    struct MockVersionSource {
         tags: Vec<String>,
     }
 
-    impl TagSource for MockTagSource {
-        fn all_tags(&self) -> Result<Vec<String>, TagSourceError> {
+    impl VersionSource for MockVersionSource {
+        fn all_tags(&self) -> Result<Vec<String>, VersionSourceError> {
             Ok(self.tags.clone())
         }
     }
 
-    fn mock(tags: &[&str]) -> MockTagSource {
-        MockTagSource {
+    fn mock(tags: &[&str]) -> MockVersionSource {
+        MockVersionSource {
             tags: tags.iter().map(|s| s.to_string()).collect(),
         }
     }
@@ -557,22 +566,119 @@ mod tests {
 
     #[test]
     fn test_parse_semver_standard() {
-        assert_eq!(parse_semver("v1.2.3"), (1, 2, 3));
+        assert_eq!(
+            parse_semver_tag("v1.2.3"),
+            Some(semver::Version::new(1, 2, 3))
+        );
     }
     #[test]
     fn test_parse_semver_scoped() {
-        assert_eq!(parse_semver("cli/v0.5.0"), (0, 5, 0));
+        assert_eq!(
+            parse_semver_tag("cli/v0.5.0"),
+            Some(semver::Version::new(0, 5, 0))
+        );
     }
     #[test]
     fn test_parse_semver_prerelease() {
-        assert_eq!(parse_semver("v1.0.0-rc.1"), (1, 0, 0));
+        let v = parse_semver_tag("v1.0.0-rc.1").unwrap();
+        assert_eq!(v.major, 1);
+        assert_eq!(v.minor, 0);
+        assert_eq!(v.patch, 0);
+        assert!(!v.pre.is_empty());
     }
     #[test]
     fn test_parse_semver_no_v() {
-        assert_eq!(parse_semver("1.2.3"), (1, 2, 3));
+        assert_eq!(
+            parse_semver_tag("1.2.3"),
+            Some(semver::Version::new(1, 2, 3))
+        );
     }
     #[test]
     fn test_parse_semver_invalid() {
-        assert_eq!(parse_semver("not-a-version"), (0, 0, 0));
+        assert_eq!(parse_semver_tag("not-a-version"), None);
+    }
+
+    // ── parse_semver_tag 异常场景 ────────────────────────────────
+
+    #[test]
+    fn test_parse_semver_build_metadata() {
+        // 带 build metadata 的合法 tag
+        let v = parse_semver_tag("v1.0.0+build.1").unwrap();
+        assert_eq!(v.major, 1);
+        assert!(!v.build.is_empty());
+    }
+
+    #[test]
+    fn test_parse_semver_complex_prerelease() {
+        // 复杂的 pre-release：多段标识符
+        let v = parse_semver_tag("v2.0.0-alpha.1.2").unwrap();
+        assert_eq!(v.major, 2);
+        assert_eq!(v.pre.to_string(), "alpha.1.2");
+    }
+
+    #[test]
+    fn test_parse_semver_prerelease_larger_than_release() {
+        // pre-release 版本号小于正式版
+        let v1 = parse_semver_tag("v1.0.0-alpha").unwrap();
+        let v2 = parse_semver_tag("v1.0.0").unwrap();
+        assert!(v1 < v2);
+    }
+
+    #[test]
+    fn test_parse_semver_prerelease_comparison() {
+        // 数字型 pre-release 应做数值比较
+        let v1 = parse_semver_tag("v1.0.0-rc.2").unwrap();
+        let v2 = parse_semver_tag("v1.0.0-rc.10").unwrap();
+        assert!(v1 < v2, "rc.2 < rc.10");
+    }
+
+    #[test]
+    fn test_parse_semver_empty_patch() {
+        // 不完整的版本号
+        assert_eq!(parse_semver_tag("v1.0"), None);
+        assert_eq!(parse_semver_tag("v1"), None);
+    }
+
+    #[test]
+    fn test_parse_semver_multiple_scopes() {
+        // 嵌套 scope 前缀
+        assert_eq!(
+            parse_semver_tag("parent/cli/v1.2.3"),
+            Some(semver::Version::new(1, 2, 3))
+        );
+    }
+
+    #[test]
+    fn test_parse_semver_uppercase() {
+        // 大写的 V 前缀
+        assert_eq!(
+            parse_semver_tag("V1.2.3"),
+            Some(semver::Version::new(1, 2, 3))
+        );
+    }
+
+    #[test]
+    fn test_parse_semver_scope_with_dot() {
+        // scope 名带点
+        assert_eq!(
+            parse_semver_tag("pkg.name/v1.2.3"),
+            Some(semver::Version::new(1, 2, 3))
+        );
+    }
+
+    #[test]
+    fn test_semver_desc_valid_vs_invalid() {
+        // 合法 tag 排在非法 tag 前
+        use std::cmp::Ordering;
+        assert_eq!(semver_desc("v1.0.0", "not-a-version"), Ordering::Less);
+        assert_eq!(semver_desc("not-a-version", "v1.0.0"), Ordering::Greater);
+        assert_eq!(semver_desc("bad", "also-bad"), Ordering::Equal);
+    }
+
+    #[test]
+    fn test_semver_desc_prerelease_vs_release() {
+        // pre-release 版本在降序排序中排在正式版之后
+        use std::cmp::Ordering;
+        assert_eq!(semver_desc("v1.0.0-alpha", "v1.0.0"), Ordering::Greater);
     }
 }
