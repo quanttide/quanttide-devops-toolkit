@@ -16,14 +16,12 @@
 ## 混合策略
 
 `source/git.rs` 只做**读操作**（tag 列表、引用遍历、repo 打开），全部由 `gix` 实现。
-`git2` 仅在与 toolkit 的 `git/` 写模块整合时引入——当前阶段保持单一 gix 依赖。
+git2 仅在与 toolkit 的 `git/` 写模块整合时引入——当前阶段保持单一 gix 依赖。
 
 | 操作 | 使用库 | 原因 |
 |------|--------|------|
 | repo 打开 | `gix` | 快 14x（1ms vs 14ms）|
-| tag 列表 | `gix` | `gix::Repository::references()?.prefixed("refs/tags")?` 可用 |
-| HEAD 解析 | `gix` | `repo.head()?.id()?` |
-| refs 遍历 | `gix` | `repo.references()?.all()?` |
+| tag 列表 | `gix` | `repo.references()?.prefixed("refs/tags")` |
 | semver 排序 | Rust std | 内联 `parse_semver`，不依赖 git 库 |
 
 ## 依赖

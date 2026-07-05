@@ -12,26 +12,20 @@ use crate::contract::version::{normalize_version, read_all_config_versions};
 pub enum GitSourceError {
     /// 仓库打开失败。
     RepoOpen(String),
-    /// git2 内部错误。
-    Git2(git2::Error),
+    /// gix 内部错误。
+    Gix(String),
 }
 
 impl std::fmt::Display for GitSourceError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::RepoOpen(p) => write!(f, "无法打开仓库: {}", p),
-            Self::Git2(e) => write!(f, "git2 错误: {}", e),
+            Self::Gix(e) => write!(f, "gix 错误: {}", e),
         }
     }
 }
 
 impl std::error::Error for GitSourceError {}
-
-impl From<git2::Error> for GitSourceError {
-    fn from(e: git2::Error) -> Self {
-        Self::Git2(e)
-    }
-}
 
 // ═══════════════════════════════════════════════════════════════════════
 // 版本一致性
@@ -97,10 +91,23 @@ pub fn tags_for_scope(repo_path: &Path, scope_name: &str) -> Result<Vec<String>,
 
 /// 读取仓库中所有 tag 名称。
 fn all_tags(repo_path: &Path) -> Result<Vec<String>, GitSourceError> {
-    let repo = git2::Repository::open(repo_path)
-        .map_err(|_| GitSourceError::RepoOpen(repo_path.display().to_string()))?;
-    let tag_names = repo.tag_names(None)?;
-    Ok(tag_names.iter().flatten().map(String::from).collect())
+    let repo = gix::open(repo_path)
+        .map_err(|e| GitSourceError::RepoOpen(format!("{}: {}", repo_path.display(), e)))?;
+    let refs = repo
+        .references()
+        .map_err(|e| GitSourceError::Gix(e.to_string()))?;
+    let iter = refs
+        .prefixed("refs/tags")
+        .map_err(|e| GitSourceError::Gix(e.to_string()))?;
+    let tags: Vec<String> = iter
+        .filter_map(|r| r.ok())
+        .filter_map(|r| {
+            let full = r.name().as_bstr().to_string();
+            let short = full.strip_prefix("refs/tags/")?;
+            Some(short.to_string())
+        })
+        .collect();
+    Ok(tags)
 }
 
 /// 检查 scope 配置文件版本与最新 git tag 是否一致。
@@ -157,91 +164,12 @@ fn semver_desc(a: &str, b: &str) -> std::cmp::Ordering {
 }
 
 // ═══════════════════════════════════════════════════════════════════════
-// 测试
+// 测试（纯逻辑，无需真实 git 仓库）
 // ═══════════════════════════════════════════════════════════════════════
 
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    fn init_repo_with_tags(dir: &Path, tags: &[&str]) {
-        let repo = git2::Repository::init(dir).unwrap();
-        let sig = git2::Signature::now("test", "test@test.com").unwrap();
-        let tree = {
-            let mut index = repo.index().unwrap();
-            let oid = index.write_tree().unwrap();
-            repo.find_tree(oid).unwrap()
-        };
-        let commit = repo
-            .commit(Some("HEAD"), &sig, &sig, "init", &tree, &[])
-            .unwrap();
-        for tag in tags {
-            repo.tag_lightweight(tag, &repo.find_object(commit, None).unwrap(), false)
-                .unwrap();
-        }
-    }
-
-    // ── latest_tag ────────────────────────────────────────────
-
-    #[test]
-    fn test_latest_tag_no_tags() {
-        let d = tempfile::tempdir().unwrap();
-        git2::Repository::init(d.path()).unwrap();
-        assert_eq!(latest_tag(d.path(), "cli").unwrap(), None);
-    }
-
-    #[test]
-    fn test_latest_tag_scoped() {
-        let d = tempfile::tempdir().unwrap();
-        init_repo_with_tags(d.path(), &["cli/v0.2.0", "cli/v0.1.0", "v1.0.0"]);
-        assert_eq!(latest_tag(d.path(), "cli").unwrap(), Some("0.2.0".into()));
-    }
-
-    #[test]
-    fn test_latest_tag_unscoped_fallback() {
-        let d = tempfile::tempdir().unwrap();
-        init_repo_with_tags(d.path(), &["v1.0.0"]);
-        assert_eq!(latest_tag(d.path(), "cli").unwrap(), Some("1.0.0".into()));
-    }
-
-    #[test]
-    fn test_latest_tag_semver_sort() {
-        let d = tempfile::tempdir().unwrap();
-        init_repo_with_tags(d.path(), &["cli/v9.0.0", "cli/v10.0.0"]);
-        assert_eq!(latest_tag(d.path(), "cli").unwrap(), Some("10.0.0".into()));
-    }
-
-    #[test]
-    fn test_latest_tag_multiple_scopes() {
-        let d = tempfile::tempdir().unwrap();
-        init_repo_with_tags(d.path(), &["cli/v0.2.0", "studio/v0.3.0", "cli/v0.1.0"]);
-        assert_eq!(latest_tag(d.path(), "cli").unwrap(), Some("0.2.0".into()));
-        assert_eq!(
-            latest_tag(d.path(), "studio").unwrap(),
-            Some("0.3.0".into())
-        );
-    }
-
-    // ── tags_for_scope ─────────────────────────────────────────
-
-    #[test]
-    fn test_tags_for_scope() {
-        let d = tempfile::tempdir().unwrap();
-        init_repo_with_tags(d.path(), &["cli/v0.1.0", "cli/v0.2.0", "studio/v0.1.0"]);
-        let tags = tags_for_scope(d.path(), "cli").unwrap();
-        assert_eq!(tags.len(), 2);
-        assert!(tags.contains(&"cli/v0.1.0".to_string()));
-        assert!(tags.contains(&"cli/v0.2.0".to_string()));
-    }
-
-    #[test]
-    fn test_tags_for_scope_no_match() {
-        let d = tempfile::tempdir().unwrap();
-        init_repo_with_tags(d.path(), &["v1.0.0"]);
-        assert!(tags_for_scope(d.path(), "cli").unwrap().is_empty());
-    }
-
-    // ── parse_semver ───────────────────────────────────────────
 
     #[test]
     fn test_parse_semver_standard() {

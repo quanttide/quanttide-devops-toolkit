@@ -1,55 +1,8 @@
-/// 集成测试：git 错误处理与版本状态。
+/// 集成测试：git 错误处理、tag 读取与版本状态。
+use std::path::Path;
 
-// ═══════════════════════════════════════════════════════════════════════
-// source::git — 版本状态检查
-// ═══════════════════════════════════════════════════════════════════════
-
-#[test]
-fn test_git_error_display() {
-    use quanttide_devops::source::git::GitSourceError;
-
-    let err = GitSourceError::RepoOpen("/nonexistent".into());
-    assert!(err.to_string().contains("无法打开仓库"));
-
-    // 通过真实的 git 操作失败获取 git2::Error
-    if let Err(git_err) = git2::Repository::open("/nonexistent") {
-        let from_git: GitSourceError = git_err.into();
-        assert!(from_git.to_string().contains("git2 错误"));
-    }
-}
-
-#[test]
-fn test_git_from_impl() {
-    use quanttide_devops::source::git::GitSourceError;
-    // 验证 From<git2::Error> 实现
-    if let Err(git_err) = git2::Repository::open("/nonexistent") {
-        let err: GitSourceError = git_err.into();
-        assert!(matches!(err, GitSourceError::Git2(_)));
-    }
-}
-
-#[test]
-fn test_git_version_status() {
-    let d = tempfile::tempdir().unwrap();
-    let scope = quanttide_devops::contract::Scope {
-        name: "test".into(),
-        dir: ".".into(),
-        language: quanttide_devops::contract::Language::Rust,
-        build_tool: quanttide_devops::contract::BuildTool::Unknown("auto".into()),
-        registry: quanttide_devops::contract::Registry::None,
-        framework: String::new(),
-        release: quanttide_devops::contract::StageRelease::default(),
-        test_threshold: None,
-        ci_workflow: None,
-    };
-
-    // 无 git 仓库 → RepoOpen 错误
-    let result = quanttide_devops::source::git::version_status(d.path(), &scope);
-    assert!(result.is_err());
-    assert!(result.unwrap_err().to_string().contains("无法打开仓库"));
-
-    // 有 git 仓库无 tag → tag_version=None，config_version=Some
-    let repo = git2::Repository::init(d.path()).unwrap();
+fn init_repo_with_tags(dir: &Path, tags: &[&str]) {
+    let repo = git2::Repository::init(dir).unwrap();
     let sig = git2::Signature::now("test", "test@test.com").unwrap();
     let tree = {
         let mut index = repo.index().unwrap();
@@ -58,6 +11,132 @@ fn test_git_version_status() {
     };
     repo.commit(Some("HEAD"), &sig, &sig, "init", &tree, &[])
         .unwrap();
+    for tag in tags {
+        let target = repo.head().unwrap().target().unwrap();
+        repo.tag_lightweight(tag, &repo.find_object(target, None).unwrap(), false)
+            .unwrap();
+    }
+}
+
+#[test]
+fn test_git_error_display() {
+    use quanttide_devops::source::git::GitSourceError;
+
+    let err = GitSourceError::RepoOpen("/nonexistent".into());
+    assert!(err.to_string().contains("无法打开仓库"));
+
+    let err = GitSourceError::Gix("something went wrong".into());
+    assert!(err.to_string().contains("gix 错误"));
+}
+
+// ── latest_tag ────────────────────────────────────────────
+
+#[test]
+fn test_latest_tag_no_tags() {
+    let d = tempfile::tempdir().unwrap();
+    git2::Repository::init(d.path()).unwrap();
+    assert_eq!(
+        quanttide_devops::source::git::latest_tag(d.path(), "cli").unwrap(),
+        None
+    );
+}
+
+#[test]
+fn test_latest_tag_scoped() {
+    let d = tempfile::tempdir().unwrap();
+    let tags = &["cli/v0.2.0", "cli/v0.1.0", "v1.0.0"];
+    // 用 git2 创建真实仓库和 tag
+    let repo = git2::Repository::init(d.path()).unwrap();
+    let sig = git2::Signature::now("test", "test@test.com").unwrap();
+    let tree = {
+        let mut idx = repo.index().unwrap();
+        let oid = idx.write_tree().unwrap();
+        repo.find_tree(oid).unwrap()
+    };
+    repo.commit(Some("HEAD"), &sig, &sig, "init", &tree, &[])
+        .unwrap();
+    let target = repo.head().unwrap().target().unwrap();
+    for tag in tags {
+        repo.tag_lightweight(tag, &repo.find_object(target, None).unwrap(), false)
+            .unwrap();
+    }
+    assert_eq!(
+        quanttide_devops::source::git::latest_tag(d.path(), "cli").unwrap(),
+        Some("0.2.0".into())
+    );
+}
+
+#[test]
+fn test_latest_tag_semver_sort() {
+    let d = tempfile::tempdir().unwrap();
+    init_repo_with_tags(d.path(), &["cli/v9.0.0", "cli/v10.0.0"]);
+    assert_eq!(
+        quanttide_devops::source::git::latest_tag(d.path(), "cli").unwrap(),
+        Some("10.0.0".into())
+    );
+}
+
+#[test]
+fn test_latest_tag_unscoped_fallback() {
+    let d = tempfile::tempdir().unwrap();
+    init_repo_with_tags(d.path(), &["v1.0.0"]);
+    assert_eq!(
+        quanttide_devops::source::git::latest_tag(d.path(), "cli").unwrap(),
+        Some("1.0.0".into())
+    );
+}
+
+#[test]
+fn test_latest_tag_multiple_scopes() {
+    let d = tempfile::tempdir().unwrap();
+    init_repo_with_tags(d.path(), &["cli/v0.2.0", "studio/v0.3.0", "cli/v0.1.0"]);
+    assert_eq!(
+        quanttide_devops::source::git::latest_tag(d.path(), "cli").unwrap(),
+        Some("0.2.0".into())
+    );
+    assert_eq!(
+        quanttide_devops::source::git::latest_tag(d.path(), "studio").unwrap(),
+        Some("0.3.0".into())
+    );
+}
+
+// ── tags_for_scope ─────────────────────────────────────────
+
+#[test]
+fn test_tags_for_scope() {
+    let d = tempfile::tempdir().unwrap();
+    init_repo_with_tags(d.path(), &["cli/v0.1.0", "cli/v0.2.0", "studio/v0.1.0"]);
+    let tags = quanttide_devops::source::git::tags_for_scope(d.path(), "cli").unwrap();
+    assert_eq!(tags.len(), 2);
+    assert!(tags.contains(&"cli/v0.1.0".to_string()));
+    assert!(tags.contains(&"cli/v0.2.0".to_string()));
+}
+
+#[test]
+fn test_tags_for_scope_no_match() {
+    let d = tempfile::tempdir().unwrap();
+    init_repo_with_tags(d.path(), &["v1.0.0"]);
+    assert!(
+        quanttide_devops::source::git::tags_for_scope(d.path(), "cli")
+            .unwrap()
+            .is_empty()
+    );
+}
+
+// ── version_status ─────────────────────────────────────────
+
+#[test]
+fn test_git_version_status() {
+    let d = tempfile::tempdir().unwrap();
+    let scope = scope_for_path(".");
+
+    // 无 git 仓库 → RepoOpen 错误
+    let result = quanttide_devops::source::git::version_status(d.path(), &scope);
+    assert!(result.is_err());
+    assert!(result.unwrap_err().to_string().contains("无法打开仓库"));
+
+    // 有 git 仓库无 tag → tag_version=None，config_version=Some
+    init_repo_with_tags(d.path(), &[]);
     std::fs::write(
         d.path().join("Cargo.toml"),
         r#"[package]
@@ -71,11 +150,11 @@ version = "0.1.0"
     assert!(vs.config_version.is_some());
 
     // 打 tag 后 → 一致
+    let repo = git2::Repository::open(d.path()).unwrap();
+    let target = repo.head().unwrap().target().unwrap();
     repo.tag_lightweight(
         "test/v0.1.0",
-        &repo
-            .find_object(repo.head().unwrap().target().unwrap(), None)
-            .unwrap(),
+        &repo.find_object(target, None).unwrap(),
         false,
     )
     .unwrap();
@@ -85,33 +164,11 @@ version = "0.1.0"
     assert!(vs.consistent);
 }
 
-// ═══════════════════════════════════════════════════════════════════════
-// source::git — 版本状态：tag 存在但配置文件无版本
-// ═══════════════════════════════════════════════════════════════════════
-
 #[test]
 fn test_git_version_status_config_no_version() {
-    // 有 tag 但配置文件版本为空 → consistent=true（None 被视为一致）
     let d = tempfile::tempdir().unwrap();
-    let repo = git2::Repository::init(d.path()).unwrap();
-    let sig = git2::Signature::now("test", "test@test.com").unwrap();
-    let tree = {
-        let mut index = repo.index().unwrap();
-        let oid = index.write_tree().unwrap();
-        repo.find_tree(oid).unwrap()
-    };
-    repo.commit(Some("HEAD"), &sig, &sig, "init", &tree, &[])
-        .unwrap();
-    repo.tag_lightweight(
-        "test/v0.1.0",
-        &repo
-            .find_object(repo.head().unwrap().target().unwrap(), None)
-            .unwrap(),
-        false,
-    )
-    .unwrap();
+    init_repo_with_tags(d.path(), &["test/v0.1.0"]);
 
-    // 创建 Cargo.toml 但版本号缺失
     std::fs::write(
         d.path().join("Cargo.toml"),
         r#"[package]
@@ -120,9 +177,21 @@ name = "test"
     )
     .unwrap();
 
-    let scope = quanttide_devops::contract::Scope {
+    let scope = scope_for_path(".");
+    let vs = quanttide_devops::source::git::version_status(d.path(), &scope).unwrap();
+    assert_eq!(vs.tag_version.as_deref(), Some("0.1.0"));
+    assert!(
+        vs.config_files
+            .iter()
+            .any(|(n, v)| n == "Cargo.toml" && v.is_none())
+    );
+    assert!(vs.consistent);
+}
+
+fn scope_for_path(dir: &str) -> quanttide_devops::contract::Scope {
+    quanttide_devops::contract::Scope {
         name: "test".into(),
-        dir: ".".into(),
+        dir: dir.into(),
         language: quanttide_devops::contract::Language::Rust,
         build_tool: quanttide_devops::contract::BuildTool::Unknown("auto".into()),
         registry: quanttide_devops::contract::Registry::None,
@@ -130,15 +199,5 @@ name = "test"
         release: quanttide_devops::contract::StageRelease::default(),
         test_threshold: None,
         ci_workflow: None,
-    };
-    let vs = quanttide_devops::source::git::version_status(d.path(), &scope).unwrap();
-    // tag 有版本，Cargo.toml 无版本 → 文件列表应包含 (Cargo.toml, None)
-    assert_eq!(vs.tag_version.as_deref(), Some("0.1.0"));
-    assert!(
-        vs.config_files
-            .iter()
-            .any(|(n, v)| n == "Cargo.toml" && v.is_none())
-    );
-    // None 被视为一致 → consistent=true
-    assert!(vs.consistent);
+    }
 }
