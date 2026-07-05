@@ -15,7 +15,7 @@ pub use platform::{Pipeline, Platform, Registry, SourceControl};
 pub use scope::{BuildTool, Language, Scope};
 pub use source::{Source, SourceType, VersionSource};
 pub use stage::{Stage, StageBuild, StageRelease, StageTest};
-pub use version::{normalize_version, read_all_config_versions, validate_version};
+pub use version::{normalize_version, validate_version};
 
 use std::path::Path;
 

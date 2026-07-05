@@ -24,7 +24,7 @@
 use std::path::{Path, PathBuf};
 
 use crate::contract::Scope;
-use crate::contract::version::{normalize_version, read_all_config_versions};
+use crate::contract::version::normalize_version;
 
 // ═══════════════════════════════════════════════════════════════════════
 // 错误类型
@@ -329,9 +329,94 @@ pub fn tags_for_scope_with(
     Ok(filter_tags_by_scope(&tags, scope_name))
 }
 
+// ═══════════════════════════════════════════════════════════════════════
+// 从配置文件读取版本号
+// ═══════════════════════════════════════════════════════════════════════
+
+type VersionExtract = fn(&str) -> Option<String>;
+
+/// 读取目录下所有已知配置文件的版本号。
+///
+/// # 示例
+///
+/// ```
+/// use std::path::Path;
+/// use quanttide_devops::source::version::read_config_versions;
+/// let versions = read_config_versions(Path::new("/tmp/nonexistent"));
+/// assert!(versions.is_empty());
+/// ```
+pub fn read_config_versions(dir: &Path) -> Vec<(String, Option<String>)> {
+    let checks: &[(&str, VersionExtract)] = &[
+        ("Cargo.toml", |c| extract_kv_version(c, "version")),
+        ("pyproject.toml", |c| extract_kv_version(c, "version")),
+        ("package.json", extract_json_version),
+        ("pubspec.yaml", |c| extract_kv_yaml_version(c)),
+    ];
+    checks
+        .iter()
+        .filter_map(|(name, extract)| {
+            let path = dir.join(name);
+            if path.exists() {
+                let content = std::fs::read_to_string(&path).ok()?;
+                Some((name.to_string(), extract(&content)))
+            } else {
+                None
+            }
+        })
+        .collect()
+}
+
+fn extract_kv_version(content: &str, key: &str) -> Option<String> {
+    let p = format!("{} = \"", key);
+    for line in content.lines() {
+        let t = line.trim();
+        if let Some(r) = t.strip_prefix(&p)
+            && let Some(end) = r.find('"')
+        {
+            let v = r[..end].to_string();
+            if !v.is_empty() {
+                return Some(v);
+            }
+        }
+    }
+    None
+}
+
+fn extract_json_version(content: &str) -> Option<String> {
+    let key = r#""version":"#;
+    for line in content.lines() {
+        if let Some(pos) = line.find(key) {
+            let after_key = line[pos + 10..].trim();
+            if let Some(start) = after_key.find('"') {
+                let after_open = &after_key[start + 1..];
+                if let Some(end) = after_open.find('"') {
+                    let v = &after_open[..end];
+                    if !v.is_empty() {
+                        return Some(v.to_string());
+                    }
+                }
+            }
+        }
+    }
+    None
+}
+
+fn extract_kv_yaml_version(content: &str) -> Option<String> {
+    for line in content.lines() {
+        let t = line.trim();
+        if let Some(r) = t.strip_prefix("version:") {
+            let v = r.trim();
+            if !v.is_empty() && !v.starts_with('#') {
+                return Some(v.to_string());
+            }
+        }
+    }
+    None
+}
+
 /// 检查 scope 配置文件版本与最新 git tag 是否一致。
 ///
-/// 结合 `latest_tag` 与 `read_all_config_versions` 的结果做对比。
+/// 结合 `latest_tag` 与配置文件版本读取的结果做对比。
 ///
 /// # 示例
 ///
@@ -352,7 +437,7 @@ pub fn version_status(
 ) -> Result<VersionStatus, VersionSourceError> {
     let tag_version = latest_tag(repo_path, &scope.name)?;
     let scope_dir = repo_path.join(&scope.dir);
-    let config_files = read_all_config_versions(&scope_dir);
+    let config_files = read_config_versions(&scope_dir);
     let config_version = config_files
         .iter()
         .find(|(_, v)| v.is_some())
