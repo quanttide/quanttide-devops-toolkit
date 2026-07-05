@@ -1,5 +1,29 @@
 # CHANGELOG
 
+## [0.2.0-alpha.1] - 2026-07-05
+
+### Changed
+
+- **破坏性重构**：`source::git` → `source::git_tag` + `source::config_file`，职责分离
+- **破坏性重构**：`version_status` → `verify_version`，移至 `contract::version`
+- **破坏性重构**：`VersionStatus` → `VersionState`，命名反映多字段快照语义
+- **破坏性重构**：`detect_language_by_files` → `source::language::detect`
+- **破坏性重构**：`read_all_config_versions` → `source::config_file::read_config_versions`
+- **破坏性重构**：`VersionSourceError` → `TagError`
+- git tag 读取从 `git2` 迁移至 `gix`（快 14x）
+- 引入 `semver` crate 替代手写 semver 解析
+- `Contract::load()` 现在展开 `Auto` → `SourceType::detect()`
+- 测试文件按模块一一对应拆分（contract_* / source_*）
+- 所有测试零 CLI git 依赖
+
+### Added
+
+- `VersionSource` trait（原 `TagSource`）
+- `source::language` 模块
+- 35 个单元测试覆盖纯逻辑全分支
+- 7 个集成测试覆盖 I/O 边界
+- 10 个版本号异常场景测试（pre-release、build metadata、大写 V）
+
 ## [0.1.5] - 2026-07-03
 
 ### Added
