@@ -215,6 +215,18 @@ mod tests {
         assert!(!validate_version("cli/"));
     }
 
+    #[test]
+    fn test_validate_version_invalid_scope_chars() {
+        assert!(!validate_version("bad space/v1.2.3"));
+        assert!(!validate_version("/v1.2.3"));
+    }
+
+    #[test]
+    fn test_validate_version_empty_prerelease() {
+        assert!(!validate_version("v1.2.3-"));
+        assert!(!validate_version("v1.2.3-."));
+    }
+
     // ── normalize_version ─────────────────────────────────────────
 
     #[test]

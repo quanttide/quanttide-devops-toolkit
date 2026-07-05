@@ -407,6 +407,20 @@ fn parse_version_header(s: &str) -> Result<(String, String), String> {
 mod tests {
     use super::*;
 
+    // ── Error display ────────────────────────────────────────────────
+
+    #[test]
+    fn test_roadmap_error_display() {
+        let err = RoadmapError::Io(std::io::Error::new(
+            std::io::ErrorKind::NotFound,
+            "not found",
+        ));
+        assert!(err.to_string().contains("读取 ROADMAP 失败"));
+
+        let err = RoadmapError::Parse("bad format".into());
+        assert!(err.to_string().contains("解析 ROADMAP 失败"));
+    }
+
     fn sample_roadmap() -> &'static str {
         "\
 # ROADMAP

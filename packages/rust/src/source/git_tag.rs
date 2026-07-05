@@ -379,6 +379,13 @@ mod tests {
         );
     }
     #[test]
+    fn test_semver_desc_both_invalid() {
+        assert_eq!(
+            semver_desc("not-a-version", "also-invalid"),
+            std::cmp::Ordering::Equal
+        );
+    }
+    #[test]
     fn test_semver_desc_prerelease_vs_release() {
         assert_eq!(
             semver_desc("v1.0.0-alpha", "v1.0.0"),
