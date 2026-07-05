@@ -20,12 +20,12 @@ fn init_repo_with_tags(dir: &Path, tags: &[&str]) {
 
 #[test]
 fn test_git_error_display() {
-    use quanttide_devops::source::git::GitSourceError;
+    use quanttide_devops::source::git_tag::TagSourceError;
 
-    let err = GitSourceError::RepoOpen("/nonexistent".into());
+    let err = TagSourceError::RepoOpen("/nonexistent".into());
     assert!(err.to_string().contains("无法打开仓库"));
 
-    let err = GitSourceError::Gix("something went wrong".into());
+    let err = TagSourceError::Gix("something went wrong".into());
     assert!(err.to_string().contains("gix 错误"));
 }
 
@@ -36,7 +36,7 @@ fn test_latest_tag_no_tags() {
     let d = tempfile::tempdir().unwrap();
     git2::Repository::init(d.path()).unwrap();
     assert_eq!(
-        quanttide_devops::source::git::latest_tag(d.path(), "cli").unwrap(),
+        quanttide_devops::source::git_tag::latest_tag(d.path(), "cli").unwrap(),
         None
     );
 }
@@ -61,7 +61,7 @@ fn test_latest_tag_scoped() {
             .unwrap();
     }
     assert_eq!(
-        quanttide_devops::source::git::latest_tag(d.path(), "cli").unwrap(),
+        quanttide_devops::source::git_tag::latest_tag(d.path(), "cli").unwrap(),
         Some("0.2.0".into())
     );
 }
@@ -71,7 +71,7 @@ fn test_latest_tag_semver_sort() {
     let d = tempfile::tempdir().unwrap();
     init_repo_with_tags(d.path(), &["cli/v9.0.0", "cli/v10.0.0"]);
     assert_eq!(
-        quanttide_devops::source::git::latest_tag(d.path(), "cli").unwrap(),
+        quanttide_devops::source::git_tag::latest_tag(d.path(), "cli").unwrap(),
         Some("10.0.0".into())
     );
 }
@@ -81,7 +81,7 @@ fn test_latest_tag_unscoped_fallback() {
     let d = tempfile::tempdir().unwrap();
     init_repo_with_tags(d.path(), &["v1.0.0"]);
     assert_eq!(
-        quanttide_devops::source::git::latest_tag(d.path(), "cli").unwrap(),
+        quanttide_devops::source::git_tag::latest_tag(d.path(), "cli").unwrap(),
         Some("1.0.0".into())
     );
 }
@@ -91,11 +91,11 @@ fn test_latest_tag_multiple_scopes() {
     let d = tempfile::tempdir().unwrap();
     init_repo_with_tags(d.path(), &["cli/v0.2.0", "studio/v0.3.0", "cli/v0.1.0"]);
     assert_eq!(
-        quanttide_devops::source::git::latest_tag(d.path(), "cli").unwrap(),
+        quanttide_devops::source::git_tag::latest_tag(d.path(), "cli").unwrap(),
         Some("0.2.0".into())
     );
     assert_eq!(
-        quanttide_devops::source::git::latest_tag(d.path(), "studio").unwrap(),
+        quanttide_devops::source::git_tag::latest_tag(d.path(), "studio").unwrap(),
         Some("0.3.0".into())
     );
 }
@@ -106,7 +106,7 @@ fn test_latest_tag_multiple_scopes() {
 fn test_tags_for_scope() {
     let d = tempfile::tempdir().unwrap();
     init_repo_with_tags(d.path(), &["cli/v0.1.0", "cli/v0.2.0", "studio/v0.1.0"]);
-    let tags = quanttide_devops::source::git::tags_for_scope(d.path(), "cli").unwrap();
+    let tags = quanttide_devops::source::git_tag::tags_for_scope(d.path(), "cli").unwrap();
     assert_eq!(tags.len(), 2);
     assert!(tags.contains(&"cli/v0.1.0".to_string()));
     assert!(tags.contains(&"cli/v0.2.0".to_string()));
@@ -117,7 +117,7 @@ fn test_tags_for_scope_no_match() {
     let d = tempfile::tempdir().unwrap();
     init_repo_with_tags(d.path(), &["v1.0.0"]);
     assert!(
-        quanttide_devops::source::git::tags_for_scope(d.path(), "cli")
+        quanttide_devops::source::git_tag::tags_for_scope(d.path(), "cli")
             .unwrap()
             .is_empty()
     );
@@ -131,7 +131,7 @@ fn test_git_version_status() {
     let scope = scope_for_path(".");
 
     // 无 git 仓库 → RepoOpen 错误
-    let result = quanttide_devops::source::git::version_status(d.path(), &scope);
+    let result = quanttide_devops::source::git_tag::version_status(d.path(), &scope);
     assert!(result.is_err());
     assert!(result.unwrap_err().to_string().contains("无法打开仓库"));
 
@@ -145,7 +145,7 @@ version = "0.1.0"
 "#,
     )
     .unwrap();
-    let vs = quanttide_devops::source::git::version_status(d.path(), &scope).unwrap();
+    let vs = quanttide_devops::source::git_tag::version_status(d.path(), &scope).unwrap();
     assert!(vs.tag_version.is_none());
     assert!(vs.config_version.is_some());
 
@@ -158,7 +158,7 @@ version = "0.1.0"
         false,
     )
     .unwrap();
-    let vs = quanttide_devops::source::git::version_status(d.path(), &scope).unwrap();
+    let vs = quanttide_devops::source::git_tag::version_status(d.path(), &scope).unwrap();
     assert_eq!(vs.tag_version.as_deref(), Some("0.1.0"));
     assert_eq!(vs.config_version.as_deref(), Some("0.1.0"));
     assert!(vs.consistent);
@@ -178,7 +178,7 @@ name = "test"
     .unwrap();
 
     let scope = scope_for_path(".");
-    let vs = quanttide_devops::source::git::version_status(d.path(), &scope).unwrap();
+    let vs = quanttide_devops::source::git_tag::version_status(d.path(), &scope).unwrap();
     assert_eq!(vs.tag_version.as_deref(), Some("0.1.0"));
     assert!(
         vs.config_files

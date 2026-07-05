@@ -52,7 +52,7 @@ for (file, version) in &versions {
 
 ```rust
 use std::path::Path;
-use quanttide_devops::source::git::{latest_tag, version_status};
+use quanttide_devops::source::git_tag::{latest_tag, version_status};
 use quanttide_devops::contract::Scope;
 
 // 获取 scope 最新 tag
