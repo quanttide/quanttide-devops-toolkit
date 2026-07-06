@@ -105,30 +105,47 @@ impl Changelog {
 /// 收集 git 提交记录。
 ///
 /// `from_tag = Some(tag)` 时范围是 `tag..HEAD`，`None` 时返回全部提交。
+/// 使用 gix 实现，避免依赖 CLI git。
 pub fn collect_git_log(repo_path: &Path, from_tag: Option<&str>) -> Result<String, ChangelogError> {
-    let range = match from_tag {
-        Some(tag) => format!("{}..HEAD", tag),
-        None => "HEAD".to_string(),
-    };
-    let args = ["log", "--oneline", &range];
+    let repo = gix::open(repo_path).map_err(|e| ChangelogError::Git(e.to_string()))?;
 
-    let output = std::process::Command::new("git")
-        .args(&args)
-        .current_dir(repo_path)
-        .output()
+    let head_id = repo
+        .head_id()
         .map_err(|e| ChangelogError::Git(e.to_string()))?;
 
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
-        return Err(ChangelogError::Git(stderr));
+    let mut platform = repo.rev_walk([head_id]);
+
+    if let Some(tag) = from_tag {
+        let full_ref = format!("refs/tags/{}", tag);
+        let mut tag_ref = repo
+            .find_reference(&full_ref)
+            .map_err(|e| ChangelogError::Git(format!("找不到 tag '{}': {}", tag, e)))?;
+        let peeled = tag_ref
+            .peel_to_id_in_place()
+            .map_err(|e| ChangelogError::Git(e.to_string()))?;
+        platform = platform.with_pruned([peeled]);
     }
 
-    let log = String::from_utf8_lossy(&output.stdout).trim().to_string();
-    if log.is_empty() {
+    let walk = platform
+        .all()
+        .map_err(|e| ChangelogError::Git(e.to_string()))?;
+
+    let mut lines = Vec::new();
+    for item in walk {
+        let info = item.map_err(|e| ChangelogError::Git(e.to_string()))?;
+        let commit = info
+            .object()
+            .map_err(|e| ChangelogError::Git(e.to_string()))?;
+        let msg = commit.message().map_err(|e| ChangelogError::Git(e.to_string()))?;
+        let short_hex = info.id.to_hex_with_len(7);
+        lines.push(format!("{} {}", short_hex, msg.summary()));
+    }
+
+    if lines.is_empty() {
         return Err(ChangelogError::Git("没有新的提交记录".into()));
     }
 
-    Ok(log)
+    Ok(lines.join("\n"))
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -158,21 +175,13 @@ pub fn build_changelog_prompt(git_log: &str, version: &str) -> String {
 // CHANGELOG 条目追加
 // ═══════════════════════════════════════════════════════════════════════
 
-/// 标准化版本号：去掉 `v` 前缀、scope 前缀。
-///
-/// 例如 `"v0.1.0"` → `"0.1.0"`，`"cli/0.1.0"` → `"0.1.0"`。
-fn normalize_version(version: &str) -> &str {
-    let v = version.strip_prefix('v').unwrap_or(version);
-    v.split('/').last().unwrap_or(v)
-}
-
 /// 向 CHANGELOG 文件追加新版本条目。
 ///
 /// - 文件不存在时创建并写入头部 `# CHANGELOG\n`
 /// - 版本已存在时跳过（返回 `Ok(false)`）
 /// - 新条目插入到已有条目的最前面，放在已有第一个版本之前
 pub fn append_entry(path: &Path, version: &str, content: &str) -> Result<bool, ChangelogError> {
-    let bare = normalize_version(version);
+    let bare = crate::contract::normalize_version(version);
 
     let today = jiff::Zoned::now().strftime("%Y-%m-%d").to_string();
     let entry = format!("\n## [{}] - {}\n\n{}\n", bare, today, content);
@@ -190,20 +199,16 @@ pub fn append_entry(path: &Path, version: &str, content: &str) -> Result<bool, C
         ChangelogError::File("已存在文件不是有效的 CHANGELOG 格式".into())
     })?;
 
-    if changelog.contains_version(bare) {
+    if changelog.contains_version(&bare) {
         return Ok(false);
     }
 
     // 找到第一个版本条目的位置，在它前面插入
     let insert_at = if let Some(first) = changelog.latest_version() {
-        // 查找第一个版本标题的位置
-        let search = format!("## [{}]", first);
-        let pos = raw.find(&search).unwrap_or(raw.len());
-        pos
+        raw.find(&format!("## [{}]", first))
+            .unwrap_or(raw.len())
     } else {
-        // 没有版本条目，追加到头部行之后
-        let after_header = raw.find('\n').map(|i| i + 1).unwrap_or(raw.len());
-        after_header
+        raw.find('\n').map(|i| i + 1).unwrap_or(raw.len())
     };
 
     let mut body = String::with_capacity(raw.len() + entry.len());
@@ -335,21 +340,6 @@ mod tests {
         let prompt = build_changelog_prompt("feat: add login\nfix: crash", "0.2.0");
         assert!(prompt.contains("feat: add login"));
         assert!(prompt.contains("fix: crash"));
-    }
-
-    #[test]
-    fn test_normalize_version_strips_v() {
-        assert_eq!(normalize_version("v0.1.0"), "0.1.0");
-    }
-
-    #[test]
-    fn test_normalize_version_strips_scope() {
-        assert_eq!(normalize_version("cli/0.1.0"), "0.1.0");
-    }
-
-    #[test]
-    fn test_normalize_version_already_clean() {
-        assert_eq!(normalize_version("0.1.0"), "0.1.0");
     }
 
     #[test]
