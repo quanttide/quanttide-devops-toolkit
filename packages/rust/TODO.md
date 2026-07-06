@@ -7,10 +7,10 @@
 ### Step 1: 扩展现有错误类型
 
 - [ ] `ChangelogError` 新增 `Git(String)` 变体（git 命令失败）
-- [ ] `ChangelogError` 新增 `Write(String)` 变体（文件写入失败）
+- [ ] `ChangelogError` 新增 `File(String)` 变体（文件写入失败）
 - [ ] 完善 `Display` 实现覆盖新变体
 - [ ] 单元测试：`test_changelog_error_display_git`
-- [ ] 单元测试：`test_changelog_error_display_write`
+- [ ] 单元测试：`test_changelog_error_display_file`
 
 ### Step 2: 新增 `collect_git_log`
 
