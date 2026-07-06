@@ -1,5 +1,17 @@
 # CHANGELOG
 
+## [0.2.3] - 2026-07-06
+
+### Added
+- 新增 `source::changelog` 模块，实现 `collect_git_log`、`build_changelog_prompt` 和 `append_entry` 功能。
+
+### Changed
+- 更新文档，标记 v0.2.3 开发任务完成，同步测试命名，并规划未来开发任务。
+- 重构 changelog 示例，重写为自包含的 toolkit API 演示。
+
+### Fixed
+- 修复 `collect_git_log` 实现，改用 gix 库，并复用 `contract::normalize_version` 进行版本规范化。
+
 ## [0.2.2] - 2026-07-06
 
 ### Added
