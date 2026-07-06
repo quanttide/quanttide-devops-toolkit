@@ -11,7 +11,6 @@
 //! 不传路径时，默认使用当前目录。
 
 use std::path::PathBuf;
-use std::process::Command;
 
 fn main() {
     let repo_path = std::env::args()
@@ -38,33 +37,12 @@ fn main() {
         println!("🔖 最新 tag: v{}", latest);
     }
 
-    // 2. 收集 git 提交记录（上个 tag 到 HEAD）
-    let range = if latest.is_empty() {
-        "HEAD".to_string()
-    } else {
-        format!("v{}..HEAD", latest)
-    };
-
-    let log = match Command::new("git")
-        .args(["log", "--oneline", &range])
-        .current_dir(&repo_path)
-        .output()
-    {
-        Ok(out) if out.status.success() => {
-            let s = String::from_utf8_lossy(&out.stdout).trim().to_string();
-            if s.is_empty() {
-                println!("📋 没有新的提交记录");
-                return;
-            }
-            s
-        }
-        Ok(out) => {
-            let err = String::from_utf8_lossy(&out.stderr).trim().to_string();
-            eprintln!("❌ git log 失败: {}", err);
-            return;
-        }
+    // 2. 收集 git 提交记录（使用 toolkit 封装的 collect_git_log）
+    let from_tag = if latest.is_empty() { None } else { Some(latest.as_str()) };
+    let log = match quanttide_devops::source::changelog::collect_git_log(&repo_path, from_tag) {
+        Ok(log) => log,
         Err(e) => {
-            eprintln!("❌ git 执行失败: {}（当前目录不是 git 仓库？）", e);
+            println!("📋 {}", e);
             return;
         }
     };
@@ -77,26 +55,17 @@ fn main() {
         println!("   ... 还有 {} 条", log.lines().count() - 5);
     }
 
-    // 3.生成 CHANGELOG 条目（输出 LLM prompt，不实际调用 LLM）
+    // 3. 生成 CHANGELOG prompt（使用 toolkit 封装的 build_changelog_prompt）
     let next_version = prompt_next_version(&latest);
     println!("\n📝 要生成的 CHANGELOG 版本: {}", next_version);
     println!("\n--- LLM Prompt ---");
     println!(
-        "根据以下 git 提交记录，为版本 {} 生成 CHANGELOG 条目。\n\
-         \n\
-         要求：\n\
-         1. 按 Added / Changed / Fixed / Removed 分类\n\
-         2. 同类提交合并为概括性条目，不要逐条罗列\n\
-         3. 用中文描述\n\
-         4. 每类不超过 5 条\n\
-         5. 仅输出内容，不要版本头部和日期\n\
-         \n\
-         提交记录：\n{}",
-        next_version, log
+        "{}",
+        quanttide_devops::source::changelog::build_changelog_prompt(&log, &next_version)
     );
     println!("---\n");
 
-    // 4. 如果能写文件，模拟写入
+    // 4. 提示写入
     let changelog_path = repo_path.join("CHANGELOG.md");
     if !changelog_path.exists() {
         println!(
@@ -112,7 +81,6 @@ fn prompt_next_version(current: &str) -> String {
     if current.is_empty() {
         "0.1.0".to_string()
     } else {
-        // 简单的 patch 递增示意
         let parts: Vec<&str> = current.split('.').collect();
         if parts.len() == 3 {
             let patch: u32 = parts[2].parse().unwrap_or(0);
