@@ -6,5 +6,4 @@
 - [ ] submodule scanning
 
 ### Changed
-- [ ] migrate doctor to plan audit
-- [ ] add plan edit command
+- [ ] rule_fixes 委托给 validate
