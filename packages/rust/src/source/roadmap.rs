@@ -123,7 +123,7 @@ impl Roadmap {
     /// 从字符串解析 ROADMAP.md。
     ///
     /// 格式约定（Keep a Changelog 变体）：
-    /// - `# ROADMAP` 作为文档标题（必须）
+    /// - `# ROADMAP` 作为文档标题（首行可以带后缀，如 `# ROADMAP — cli`）
     /// - `## [版本号] — 状态` 作为版本边界
     /// - `### 分类` 作为类别分组（Added / Fixed / Changed 等）
     /// - `- [ ] 描述` 为待办条目，`- [x] 描述` 为已完成
@@ -134,9 +134,9 @@ impl Roadmap {
             return Err(RoadmapError::Parse("ROADMAP 为空".into()));
         }
 
-        // 校验第一行是否为 `# ROADMAP`
+        // 校验第一行是否以 `# ROADMAP` 开头
         let first = lines[0].trim();
-        if first != "# ROADMAP" {
+        if !first.starts_with("# ROADMAP") {
             return Err(RoadmapError::Parse(format!(
                 "首行应包含 `# ROADMAP`，发现: {}",
                 first
@@ -549,6 +549,21 @@ mod tests {
         let r = Roadmap::from_str("## [0.1.0] — test\n");
         assert!(r.is_err());
         assert!(r.unwrap_err().to_string().contains("首行"));
+    }
+
+    #[test]
+    fn test_from_str_header_with_suffix() {
+        let s = "\
+# ROADMAP — cli
+
+## [0.1.0] — test
+
+### Added
+- [ ] something
+";
+        let r = Roadmap::from_str(s).unwrap();
+        assert_eq!(r.versions().len(), 1);
+        assert_eq!(r.versions()[0].version, "0.1.0");
     }
 
     #[test]

@@ -148,14 +148,14 @@ pub fn check_version_consistency(
 
 /// 从 git tag 和配置文件中读取版本号，验证一致性。
 ///
-/// 组合两个事实源（[`source::git_tag::latest_tag`] 和
+/// 组合两个事实源（[`source::git_tag::latest_version`] 和
 /// [`source::config_file::read_config_versions`]），应用一致性规则，
 /// 返回 [`VersionState`]。
 pub fn verify_version(
     repo_path: &Path,
     scope: &Scope,
 ) -> Result<VersionState, Box<dyn std::error::Error>> {
-    let tag_version = crate::source::git_tag::latest_tag(repo_path, &scope.name)?;
+    let tag_version = crate::source::git_tag::latest_version(repo_path, &scope.name)?;
     let scope_dir = repo_path.join(&scope.dir);
     let config_files = crate::source::config_file::read_config_versions(&scope_dir);
     let config_version = config_files

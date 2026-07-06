@@ -21,8 +21,8 @@ fn main() {
     println!("📦 仓库: {}", repo_path.display());
     println!();
 
-    // 1. 获取最新 tag（使用 toolkit 封装的 gix 实现）
-    let latest = match quanttide_devops::source::git_tag::latest_tag(&repo_path, "") {
+    // 1. 获取最新版本号（标准化，如 `0.2.0`）
+    let latest = match quanttide_devops::source::git_tag::latest_version(&repo_path, "") {
         Ok(Some(v)) => v,
         Ok(None) => {
             println!("⚠  没有找到 tag，从头开始收集提交记录");
@@ -34,7 +34,7 @@ fn main() {
         }
     };
     if !latest.is_empty() {
-        println!("🔖 最新 tag: v{}", latest);
+        println!("🔖 最新版本: {}", latest);
     }
 
     // 2. 收集 git 提交记录（使用 toolkit 封装的 collect_git_log）

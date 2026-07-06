@@ -42,7 +42,7 @@ fn test_latest_tag_scoped() {
     init_repo_with_tags(d.path(), &["cli/v0.2.0", "cli/v0.1.0", "v1.0.0"]);
     assert_eq!(
         quanttide_devops::source::git_tag::latest_tag(d.path(), "cli").unwrap(),
-        Some("0.2.0".into())
+        Some("cli/v0.2.0".into())
     );
 }
 
@@ -52,7 +52,7 @@ fn test_latest_tag_semver_sort() {
     init_repo_with_tags(d.path(), &["cli/v9.0.0", "cli/v10.0.0"]);
     assert_eq!(
         quanttide_devops::source::git_tag::latest_tag(d.path(), "cli").unwrap(),
-        Some("10.0.0".into())
+        Some("cli/v10.0.0".into())
     );
 }
 
@@ -62,7 +62,7 @@ fn test_latest_tag_unscoped_fallback() {
     init_repo_with_tags(d.path(), &["v1.0.0"]);
     assert_eq!(
         quanttide_devops::source::git_tag::latest_tag(d.path(), "cli").unwrap(),
-        Some("1.0.0".into())
+        Some("v1.0.0".into())
     );
 }
 
@@ -72,11 +72,25 @@ fn test_latest_tag_multiple_scopes() {
     init_repo_with_tags(d.path(), &["cli/v0.2.0", "studio/v0.3.0", "cli/v0.1.0"]);
     assert_eq!(
         quanttide_devops::source::git_tag::latest_tag(d.path(), "cli").unwrap(),
-        Some("0.2.0".into())
+        Some("cli/v0.2.0".into())
     );
     assert_eq!(
         quanttide_devops::source::git_tag::latest_tag(d.path(), "studio").unwrap(),
-        Some("0.3.0".into())
+        Some("studio/v0.3.0".into())
+    );
+}
+
+#[test]
+fn test_latest_version() {
+    let d = tempfile::tempdir().unwrap();
+    init_repo_with_tags(d.path(), &["cli/v0.2.0", "cli/v0.1.0", "v1.0.0"]);
+    assert_eq!(
+        quanttide_devops::source::git_tag::latest_version(d.path(), "cli").unwrap(),
+        Some("0.2.0".into())
+    );
+    assert_eq!(
+        quanttide_devops::source::git_tag::latest_version(d.path(), "studio").unwrap(),
+        Some("1.0.0".into())
     );
 }
 

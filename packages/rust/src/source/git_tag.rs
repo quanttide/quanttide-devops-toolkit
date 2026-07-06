@@ -13,7 +13,8 @@
 //!
 //! ```ignore
 //! use quanttide_devops::source::git_tag::latest_tag;
-//! let tag = latest_tag(repo_path, "cli")?;
+//! let tag = latest_tag(repo_path, "cli")?;  // "cli/v0.2.0"
+//! let ver = quanttide_devops::source::git_tag::latest_version(repo_path, "cli")?;  // "0.2.0"
 //! ```
 
 use crate::contract::version::normalize_version;
@@ -90,10 +91,10 @@ impl TagSource for GixTagSource {
 // 纯逻辑
 // ═══════════════════════════════════════════════════════════════════════
 
-/// 从 tag 列表中选出指定 scope 的最新版本，标准化后返回。
+/// 从 tag 列表中选出指定 scope 的最新 tag（原始格式，如 `cli/v0.2.0`）。
 ///
 /// scope 匹配规则：
-/// - `cli/v0.1.0` → scope `cli` 匹配，返回 `0.1.0`
+/// - `cli/v0.1.0` → scope `cli` 匹配，返回 `cli/v0.1.0`
 /// - `v0.1.0`（无前缀）→ 任何 scope 都不匹配，仅在 scope 无专属 tag 时作为兜底
 /// - 使用 semver 排序
 ///
@@ -101,7 +102,7 @@ impl TagSource for GixTagSource {
 /// use quanttide_devops::source::git_tag::filter_latest_tag;
 ///
 /// let tags = vec!["cli/v0.2.0".into(), "cli/v0.1.0".into(), "v1.0.0".into()];
-/// assert_eq!(filter_latest_tag(&tags, "cli"), Some("0.2.0".into()));
+/// assert_eq!(filter_latest_tag(&tags, "cli"), Some("cli/v0.2.0".into()));
 /// ```
 pub fn filter_latest_tag(tags: &[String], scope_name: &str) -> Option<String> {
     let prefix = format!("{}/", scope_name);
@@ -119,9 +120,23 @@ pub fn filter_latest_tag(tags: &[String], scope_name: &str) -> Option<String> {
     scoped.sort_by(|a, b| semver_desc(a, b));
     unscoped.sort_by(|a, b| semver_desc(a, b));
     match scoped.first() {
-        Some(t) => Some(normalize_version(t)),
-        None => unscoped.first().map(|t| normalize_version(t)),
+        Some(t) => Some(t.to_string()),
+        None => unscoped.first().map(|t| t.to_string()),
     }
+}
+
+/// 从 tag 列表中选出指定 scope 的最新版本号（标准化，如 `0.2.0`）。
+///
+/// 与 [`filter_latest_tag`] 的区别：后者返回原始 tag 名，本函数返回去 scope 去 v 前缀的版本号。
+///
+/// ```
+/// use quanttide_devops::source::git_tag::filter_latest_version;
+///
+/// let tags = vec!["cli/v0.2.0".into(), "cli/v0.1.0".into(), "v1.0.0".into()];
+/// assert_eq!(filter_latest_version(&tags, "cli"), Some("0.2.0".into()));
+/// ```
+pub fn filter_latest_version(tags: &[String], scope_name: &str) -> Option<String> {
+    filter_latest_tag(tags, scope_name).map(|t| normalize_version(&t))
 }
 
 /// 从 tag 列表中过滤出指定 scope 的 tag。
@@ -144,9 +159,16 @@ pub fn filter_tags_by_scope(tags: &[String], scope_name: &str) -> Vec<String> {
 // 公开 API
 // ═══════════════════════════════════════════════════════════════════════
 
-/// 获取指定 scope 的最新 tag，标准化后返回。
+/// 获取指定 scope 的最新 tag（原始格式，如 `cli/v0.2.0`）。
+///
+/// 需要标准化版本号时使用 [`latest_version`]。
 pub fn latest_tag(repo_path: &Path, scope_name: &str) -> Result<Option<String>, TagError> {
     latest_tag_with(&GixTagSource::new(repo_path), scope_name)
+}
+
+/// 获取指定 scope 的最新版本号（标准化，如 `0.2.0`）。
+pub fn latest_version(repo_path: &Path, scope_name: &str) -> Result<Option<String>, TagError> {
+    latest_version_with(&GixTagSource::new(repo_path), scope_name)
 }
 
 /// 获取指定 scope 的所有 tag（原始格式）。
@@ -163,6 +185,15 @@ pub fn latest_tag_with(
     Ok(filter_latest_tag(&tags, scope_name))
 }
 
+/// 带注入 [`TagSource`] 的 `latest_version`。
+pub fn latest_version_with(
+    source: &impl TagSource,
+    scope_name: &str,
+) -> Result<Option<String>, TagError> {
+    let tags = source.all_tags()?;
+    Ok(filter_latest_version(&tags, scope_name))
+}
+
 /// 带注入 [`TagSource`] 的 `tags_for_scope`。
 pub fn tags_for_scope_with(
     source: &impl TagSource,
@@ -176,7 +207,7 @@ pub fn tags_for_scope_with(
 // semver 比较
 // ═══════════════════════════════════════════════════════════════════════
 
-fn parse_semver_tag(tag: &str) -> Option<semver::Version> {
+pub fn parse_semver_tag(tag: &str) -> Option<semver::Version> {
     let after_scope = tag.split('/').next_back().unwrap_or(tag);
     let ver = after_scope
         .strip_prefix('v')
@@ -220,58 +251,103 @@ mod tests {
         }
     }
 
+    // ── filter_latest_tag (raw) ─────────────────────────────────────
+
     #[test]
-    fn test_latest_tag_scoped_wins() {
+    fn test_filter_latest_tag_raw_scoped() {
         let tags = vec!["cli/v0.2.0".into(), "cli/v0.1.0".into(), "v1.0.0".into()];
-        assert_eq!(filter_latest_tag(&tags, "cli"), Some("0.2.0".into()));
+        assert_eq!(
+            filter_latest_tag(&tags, "cli"),
+            Some("cli/v0.2.0".into())
+        );
     }
 
     #[test]
-    fn test_latest_tag_unscoped_fallback() {
+    fn test_filter_latest_tag_raw_unscoped_fallback() {
         let tags = vec!["v1.0.0".into()];
-        assert_eq!(filter_latest_tag(&tags, "cli"), Some("1.0.0".into()));
+        assert_eq!(filter_latest_tag(&tags, "cli"), Some("v1.0.0".into()));
     }
 
     #[test]
-    fn test_latest_tag_empty() {
+    fn test_filter_latest_tag_raw_empty() {
         let tags: Vec<String> = vec![];
         assert_eq!(filter_latest_tag(&tags, "cli"), None);
     }
 
+    // ── filter_latest_version (normalized) ──────────────────────────
+
     #[test]
-    fn test_latest_tag_semver_sort() {
+    fn test_filter_latest_version_scoped_wins() {
+        let tags = vec!["cli/v0.2.0".into(), "cli/v0.1.0".into(), "v1.0.0".into()];
+        assert_eq!(filter_latest_version(&tags, "cli"), Some("0.2.0".into()));
+    }
+
+    #[test]
+    fn test_filter_latest_version_unscoped_fallback() {
+        let tags = vec!["v1.0.0".into()];
+        assert_eq!(filter_latest_version(&tags, "cli"), Some("1.0.0".into()));
+    }
+
+    #[test]
+    fn test_filter_latest_version_empty() {
+        let tags: Vec<String> = vec![];
+        assert_eq!(filter_latest_version(&tags, "cli"), None);
+    }
+
+    #[test]
+    fn test_filter_latest_version_semver_sort() {
         let tags = vec!["cli/v9.0.0".into(), "cli/v10.0.0".into()];
-        assert_eq!(filter_latest_tag(&tags, "cli"), Some("10.0.0".into()));
+        assert_eq!(
+            filter_latest_version(&tags, "cli"),
+            Some("10.0.0".into())
+        );
     }
 
     #[test]
-    fn test_latest_tag_scope_no_match() {
+    fn test_filter_latest_version_scope_no_match() {
         let tags = vec!["other/v0.1.0".into()];
-        assert_eq!(filter_latest_tag(&tags, "cli"), None);
+        assert_eq!(filter_latest_version(&tags, "cli"), None);
     }
 
     #[test]
-    fn test_latest_tag_excludes_empty_scope() {
+    fn test_filter_latest_version_excludes_empty_scope() {
         let tags = vec!["cli/".into(), "v1.0.0".into()];
-        assert_eq!(filter_latest_tag(&tags, "cli"), Some("1.0.0".into()));
+        assert_eq!(filter_latest_version(&tags, "cli"), Some("1.0.0".into()));
     }
 
     #[test]
-    fn test_latest_tag_multi_scope() {
+    fn test_filter_latest_version_multi_scope() {
         let tags = vec![
             "cli/v0.2.0".into(),
             "studio/v0.3.0".into(),
             "cli/v0.1.0".into(),
         ];
-        assert_eq!(filter_latest_tag(&tags, "cli"), Some("0.2.0".into()));
-        assert_eq!(filter_latest_tag(&tags, "studio"), Some("0.3.0".into()));
+        assert_eq!(
+            filter_latest_version(&tags, "cli"),
+            Some("0.2.0".into())
+        );
+        assert_eq!(
+            filter_latest_version(&tags, "studio"),
+            Some("0.3.0".into())
+        );
     }
+
+    // ── latest_tag_with / latest_version_with ───────────────────────
 
     #[test]
     fn test_latest_tag_with_mock() {
         let source = mock(&["cli/v0.2.0", "v1.0.0"]);
         assert_eq!(
             latest_tag_with(&source, "cli").unwrap(),
+            Some("cli/v0.2.0".into())
+        );
+    }
+
+    #[test]
+    fn test_latest_version_with_mock() {
+        let source = mock(&["cli/v0.2.0", "v1.0.0"]);
+        assert_eq!(
+            latest_version_with(&source, "cli").unwrap(),
             Some("0.2.0".into())
         );
     }
@@ -280,6 +356,12 @@ mod tests {
     fn test_latest_tag_with_empty() {
         let source = mock(&[]);
         assert_eq!(latest_tag_with(&source, "cli").unwrap(), None);
+    }
+
+    #[test]
+    fn test_latest_version_with_empty() {
+        let source = mock(&[]);
+        assert_eq!(latest_version_with(&source, "cli").unwrap(), None);
     }
 
     #[test]
