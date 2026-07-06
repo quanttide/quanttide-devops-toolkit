@@ -1,5 +1,24 @@
 # CHANGELOG
 
+## [0.3.0] - 2026-07-06
+
+### Breaking
+
+- `source::git_tag::latest_tag()` 返回原始 tag 名（如 `cli/v0.2.0`），不再返回标准化版本号。改用新增的 `latest_version()` 获取标准化版本号（如 `0.2.0`）。
+
+### Added
+
+- `source::git_tag::latest_version()` — 获取最新版本号（标准化，去 scope/v 前缀）。
+- `source::git_tag::latest_version_with()` — 带 TagSource 注入的 `latest_version`。
+- `source::git_tag::filter_latest_version()` — 纯函数，从 tag 列表中选最新版本号。
+- `source::git_tag::parse_semver_tag()` 改为 `pub` — 外部可复用。
+- `source::git_tag` 模块文档补充 `latest_version` 示例。
+
+### Changed
+
+- `Roadmap::from_str()` 首行校验从精确匹配 `# ROADMAP` 改为 `starts_with("# ROADMAP")`，支持 `# ROADMAP — cli` 等后缀。
+- `source::changelog` 改用 gix 替代 CLI git，复用 `contract::normalize_version`。
+
 ## [0.2.3] - 2026-07-06
 
 ### Added
