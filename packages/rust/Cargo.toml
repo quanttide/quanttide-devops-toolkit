@@ -1,6 +1,6 @@
 [package]
 name = "quanttide-devops"
-version = "0.3.0"
+version = "0.3.1"
 edition = "2024"
 description = "QuantTide DevOps toolkit — 契约驱动的 DevOps 治理工具库"
 authors = ["QuantTide <opensource@quanttide.com>"]

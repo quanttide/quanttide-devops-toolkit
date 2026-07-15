@@ -1,5 +1,13 @@
 # CHANGELOG
 
+## [0.3.1] - 2026-07-15
+
+### Added
+
+- `stage::release::ReleaseStatus` — 发布生命周期状态枚举（Unreleased / Latest / Pending / Inconsistent / Unknown）。
+- `stage::release::ReleaseState` — 发布状态快照结构体。
+- `source::git_repo::is_git_repo()` — 判断路径是否为 git 仓库，公开并添加覆盖测试。
+
 ## [0.3.0] - 2026-07-06
 
 ### Breaking
