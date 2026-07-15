@@ -48,17 +48,33 @@ cargo run --example config_file /path/to/repo
 
 ### `changelog`
 
-收集 git log、构建 LLM prompt、生成 CHANGELOG 条目。不传路径时使用当前目录。
+收集 git log、构建 LLM prompt、生成 CHANGELOG 条目。
 
 ```sh
 cargo run --example changelog /path/to/repo
+```
+
+### `changelog_edit`
+
+CHANGELOG 读取与编辑：`from_str` / `from_path` 解析、`contains_version` / `release_notes` / `versions` 查询、`append_entry` 追加。
+
+```sh
+cargo run --example changelog_edit
+```
+
+### `tag_source_trait`
+
+`TagSource` trait 与 mock 注入：自定义 `MockTagSource`，演示 `_with` 系列函数解耦 I/O。展示 trait 如何划定测试边界、mock 能覆盖的真实仓库难以构造的 edge case。
+
+```sh
+cargo run --example tag_source_trait
 ```
 
 ## stage
 
 ### `release`
 
-发布状态的 5 种取值（Unreleased / Latest / Pending / Inconsistent / Unknown）及其结构化报告输出。
+结合 git tag（通过 mock `TagSource`）与契约配置，计算多 scope 的发布状态（Unreleased / Latest / Pending / Inconsistent），输出结构化报告。
 
 ```sh
 cargo run --example release
