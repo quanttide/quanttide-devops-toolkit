@@ -15,6 +15,27 @@ pub enum ReleaseStatus {
     Unknown,
 }
 
+/// 返回状态的中文标签，用于命令行输出。
+///
+/// | 变体 | 标签 |
+/// |---|---|
+/// | `Unreleased` | 未发布 |
+/// | `Latest` | 已是最新 |
+/// | `Pending` | 待发布 |
+/// | `Inconsistent` | 版本冲突 |
+/// | `Unknown` | 状态未知 |
+impl std::fmt::Display for ReleaseStatus {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Unreleased => write!(f, "未发布"),
+            Self::Latest => write!(f, "已是最新"),
+            Self::Pending => write!(f, "待发布"),
+            Self::Inconsistent => write!(f, "版本冲突"),
+            Self::Unknown => write!(f, "状态未知"),
+        }
+    }
+}
+
 /// 发布阶段状态快照。
 ///
 /// 记录一个 scope 在某个时刻的发布状态快照。
@@ -56,6 +77,15 @@ mod tests {
     fn test_release_status_debug() {
         let s = format!("{:?}", ReleaseStatus::Unreleased);
         assert_eq!(s, "Unreleased");
+    }
+
+    #[test]
+    fn test_release_status_display() {
+        assert_eq!(format!("{}", ReleaseStatus::Unreleased), "未发布");
+        assert_eq!(format!("{}", ReleaseStatus::Latest), "已是最新");
+        assert_eq!(format!("{}", ReleaseStatus::Pending), "待发布");
+        assert_eq!(format!("{}", ReleaseStatus::Inconsistent), "版本冲突");
+        assert_eq!(format!("{}", ReleaseStatus::Unknown), "状态未知");
     }
 
     // ── ReleaseState ───────────────────────────────────────────────
