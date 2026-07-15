@@ -59,6 +59,43 @@ pub struct ReleaseState {
     pub version_consistent: Option<bool>,
 }
 
+impl ReleaseState {
+    /// 构造一个发布状态快照，变更日志默认使用 `"CHANGELOG.md"`。
+    ///
+    /// ```
+    /// use quanttide_devops::stage::release::{ReleaseState, ReleaseStatus};
+    ///
+    /// let s = ReleaseState::new(
+    ///     ReleaseStatus::Pending,
+    ///     "cli",
+    ///     "src/cli",
+    ///     Some("v1.2.3".into()),
+    ///     3,
+    ///     Some(true),
+    /// );
+    /// assert_eq!(s.scope, "cli");
+    /// assert_eq!(s.changelog, "CHANGELOG.md");
+    /// ```
+    pub fn new(
+        status: ReleaseStatus,
+        scope: impl Into<String>,
+        scope_path: impl Into<String>,
+        current_version: Option<String>,
+        pending_commits: usize,
+        version_consistent: Option<bool>,
+    ) -> Self {
+        Self {
+            status,
+            scope: scope.into(),
+            scope_path: scope_path.into(),
+            current_version,
+            pending_commits,
+            changelog: "CHANGELOG.md".into(),
+            version_consistent,
+        }
+    }
+}
+
 /// 多行报告格式，与平台 `status_to` 输出一致：
 ///
 /// ```text

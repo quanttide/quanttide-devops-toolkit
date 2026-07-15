@@ -1,5 +1,15 @@
 # CHANGELOG
 
+## [0.3.2] - 2026-07-15
+
+### Added
+
+- `stage::release::ReleaseState::new()` — 构造方法，`changelog` 默认 `"CHANGELOG.md"`。
+
+### Changed
+
+- `stage::release::ReleaseState::Display` 改为多行报告格式。
+
 ## [0.3.1] - 2026-07-15
 
 ### Added
