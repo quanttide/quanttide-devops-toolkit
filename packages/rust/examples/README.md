@@ -32,7 +32,7 @@ cargo run --example roadmap
 
 ### `git_tag`
 
-按 scope 过滤 tag（filter_tags_by_scope）、semver 解析（parse_semver_tag）、取最新版本号（filter_latest_version）。纯函数，无需 git 仓库。
+tag 过滤、semver 解析、`TagSource` trait + mock 注入：纯函数（`parse_semver_tag` / `filter_tags_by_scope` / `filter_latest_tag` / `filter_latest_version`）和 `_with` 系列函数（`latest_tag_with` / `latest_version_with` / `tags_for_scope_with`）。无需 git 仓库。
 
 ```sh
 cargo run --example git_tag
@@ -48,26 +48,10 @@ cargo run --example config_file /path/to/repo
 
 ### `changelog`
 
-收集 git log、构建 LLM prompt、生成 CHANGELOG 条目。
+解析与查询（`from_str` / `contains_version` / `release_notes` / `versions` / `latest_version`）、条目追加（`append_entry`）、生成 pipeline（`collect_git_log` → `build_changelog_prompt`）。不传路径时运行前两部分；传路径时额外执行生成。
 
 ```sh
 cargo run --example changelog /path/to/repo
-```
-
-### `changelog_edit`
-
-CHANGELOG 读取与编辑：`from_str` / `from_path` 解析、`contains_version` / `release_notes` / `versions` 查询、`append_entry` 追加。
-
-```sh
-cargo run --example changelog_edit
-```
-
-### `tag_source_trait`
-
-`TagSource` trait 与 mock 注入：自定义 `MockTagSource`，演示 `_with` 系列函数解耦 I/O。展示 trait 如何划定测试边界、mock 能覆盖的真实仓库难以构造的 edge case。
-
-```sh
-cargo run --example tag_source_trait
 ```
 
 ## stage

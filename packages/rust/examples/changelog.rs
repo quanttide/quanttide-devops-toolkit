@@ -1,82 +1,124 @@
-//! CHANGELOG 生成演示 — toolkit 版本管理 API 使用示例。
+//! CHANGELOG 读取与生成 — 覆盖 `source::changelog` 的查询、编辑、生成全流程。
 //!
-//! 展示：收集 git 提交记录 → 获取最新 tag → 生成 CHANGELOG 条目。
+//! - 解析、查询（`from_str` / `contains_version` / `release_notes` / `versions` / `latest_version`）
+//! - 条目追加（`append_entry`）
+//! - 生成 pipeline（`collect_git_log` → `build_changelog_prompt`）
 //!
 //! # 运行
 //!
-//! ```bash
-//! cargo run --example changelog /path/to/repo
+//! ```sh
+//! cargo run --example changelog                # 查询 + 编辑（纯函数，无需仓库）
+//! cargo run --example changelog /path/to/repo  # 额外执行生成 pipeline（需 git 仓库）
 //! ```
-//!
-//! 不传路径时，默认使用当前目录。
 
 use std::path::PathBuf;
 
 fn main() {
-    let repo_path = std::env::args()
-        .nth(1)
-        .map(PathBuf::from)
-        .unwrap_or_else(|| std::env::current_dir().unwrap());
+    // ── A. 解析与查询 ──────────────────────────────────────────
+    let content = "\
+# CHANGELOG
 
-    println!("📦 仓库: {}", repo_path.display());
-    println!();
+## [0.2.0] - 2026-07-15
 
-    // 1. 获取最新版本号（标准化，如 `0.2.0`）
-    let latest = match quanttide_devops::source::git_tag::latest_version(&repo_path, "") {
-        Ok(Some(v)) => v,
-        Ok(None) => {
-            println!("⚠  没有找到 tag，从头开始收集提交记录");
-            String::new()
-        }
-        Err(e) => {
-            eprintln!("❌ 读取 tag 失败: {}", e);
-            String::new()
-        }
-    };
-    if !latest.is_empty() {
-        println!("🔖 最新版本: {}", latest);
+### Added
+- Git tag semver 排序支持。
+- 契约版本一致性检查。
+
+## [0.1.0] - 2026-06-01
+
+### Added
+- 初始版本：基础契约加载与 scope 列表。
+";
+
+    let changelog =
+        quanttide_devops::source::changelog::Changelog::from_str(content).expect("解析失败");
+
+    println!("[A] 解析与查询\n");
+    for v in changelog.versions() {
+        let notes = changelog.release_notes(v).unwrap_or("");
+        let first = notes.lines().next().unwrap_or("");
+        let is_latest = changelog.latest_version() == Some(v);
+        println!(
+            "    {:8} {}  — {}",
+            v,
+            if is_latest { "(最新)" } else { "" },
+            first,
+        );
     }
 
-    // 2. 收集 git 提交记录（使用 toolkit 封装的 collect_git_log）
-    let from_tag = if latest.is_empty() { None } else { Some(latest.as_str()) };
-    let log = match quanttide_devops::source::changelog::collect_git_log(&repo_path, from_tag) {
-        Ok(log) => log,
-        Err(e) => {
-            println!("📋 {}", e);
-            return;
-        }
-    };
+    // ── B. append_entry ──────────────────────────────────────────
+    println!("\n[B] append_entry — 追加新版本");
+    let dir = tempfile::tempdir().expect("创建临时目录失败");
+    let path = dir.path().join("CHANGELOG.md");
 
-    println!("\n📋 提交记录 ({} 条):", log.lines().count());
-    for line in log.lines().take(5) {
+    // 创建新文件
+    quanttide_devops::source::changelog::append_entry(&path, "0.1.0", "### Added\n- 初始版本。")
+        .expect("追加失败");
+    // 插入新版本到已有版本之前
+    quanttide_devops::source::changelog::append_entry(&path, "0.2.0", "### Added\n- 新功能。")
+        .expect("追加失败");
+    // 已存在的版本跳过
+    let skipped = quanttide_devops::source::changelog::append_entry(
+        &path,
+        "0.1.0",
+        "### Added\n- 重复。",
+    )
+    .expect("追加失败");
+    // scope 前缀自动标准化
+    quanttide_devops::source::changelog::append_entry(&path, "cli/0.3.0", "### Added\n- CLI 发布。")
+        .expect("追加失败");
+
+    let raw = std::fs::read_to_string(&path).unwrap();
+    for line in raw.lines().take(8) {
         println!("   {}", line);
     }
-    if log.lines().count() > 5 {
-        println!("   ... 还有 {} 条", log.lines().count() - 5);
-    }
+    println!("    重复跳过: {}    含 scope 前缀: {}", if skipped { "否" } else { "是" }, if raw.contains("cli/0.3.0") { "是" } else { "否" });
 
-    // 3. 生成 CHANGELOG prompt（使用 toolkit 封装的 build_changelog_prompt）
-    let next_version = prompt_next_version(&latest);
-    println!("\n📝 要生成的 CHANGELOG 版本: {}", next_version);
-    println!("\n--- LLM Prompt ---");
-    println!(
-        "{}",
-        quanttide_devops::source::changelog::build_changelog_prompt(&log, &next_version)
-    );
-    println!("---\n");
+    // ── C. 生成 pipeline（需要 git 仓库） ──────────────────────
+    let repo_path = std::env::args().nth(1).map(PathBuf::from);
+    if let Some(ref path) = repo_path {
+        println!("\n[C] 生成 pipeline — {}", path.display());
 
-    // 4. 提示写入
-    let changelog_path = repo_path.join("CHANGELOG.md");
-    if !changelog_path.exists() {
-        println!(
-            "💡 提示: CHANGELOG.md 不存在，创建后可运行 `cargo run --example changelog .` 重新生成"
-        );
+        let latest =
+            match quanttide_devops::source::git_tag::latest_version(path, "") {
+                Ok(Some(v)) => v,
+                Ok(None) => {
+                    println!("    无 tag，从头收集");
+                    String::new()
+                }
+                Err(e) => {
+                    println!("    读取 tag 失败: {}", e);
+                    String::new()
+                }
+            };
+        if !latest.is_empty() {
+            println!("    最新版本: {}", latest);
+        }
+
+        let from_tag = if latest.is_empty() {
+            None
+        } else {
+            Some(latest.as_str())
+        };
+        match quanttide_devops::source::changelog::collect_git_log(path, from_tag) {
+            Ok(log) => {
+                let next_version = prompt_next_version(&latest);
+                println!("    提交记录: {} 条", log.lines().count());
+                println!(
+                    "    LLM prompt ({} 字):",
+                    quanttide_devops::source::changelog::build_changelog_prompt(
+                        &log, &next_version
+                    )
+                    .len()
+                );
+            }
+            Err(e) => println!("    收集日志失败: {}", e),
+        }
     } else {
-        println!("📄 CHANGELOG.md 已存在，手动将 LLM 输出粘贴到文件中");
+        println!("\n[C] 生成 pipeline — 跳过（未传入 git 仓库路径）");
     }
 }
 
-/// 根据当前版本号提示下一个版本。
 fn prompt_next_version(current: &str) -> String {
     if current.is_empty() {
         "0.1.0".to_string()
