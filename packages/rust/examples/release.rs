@@ -1,7 +1,6 @@
 //! 演示 `ReleaseStatus` 和 `ReleaseState` 的使用方式。
 //!
 //! 模拟一个 scope 的发布生命周期：创建 → 提交 → 发布 → 再提交 → 版本冲突。
-//! 展示各阶段的状态输出和 Display 格式。
 
 use quanttide_devops::stage::release::{ReleaseState, ReleaseStatus};
 
@@ -66,25 +65,6 @@ fn main() {
     // ── 输出 ──────────────────────────────────────────────────────
     println!("发布生命周期演示\n{}", "─".repeat(40));
     for s in &states {
-        println!("  {}", s);
-    }
-
-    println!("\n详细输出\n{}", "─".repeat(40));
-    for s in &states {
-        println!("  [{}]", s.scope);
-        println!("    状态:         {}", s.status);
-        println!("    路径:         {}", s.scope_path);
-        match &s.current_version {
-            Some(v) => println!("    最新标签:     {}", v),
-            None => println!("    最新标签:     (无)"),
-        }
-        println!("    未发布提交:   {}", s.pending_commits);
-        println!("    变更日志:     {}", s.changelog);
-        match s.version_consistent {
-            Some(true) => println!("    版本一致:     是"),
-            Some(false) => println!("    版本一致:     否"),
-            None => {}
-        }
-        println!();
+        print!("{}", s);
     }
 }

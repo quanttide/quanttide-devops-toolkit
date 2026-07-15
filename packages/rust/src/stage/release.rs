@@ -59,24 +59,33 @@ pub struct ReleaseState {
     pub version_consistent: Option<bool>,
 }
 
-/// 格式：`[scope]  状态`，有版本时附加 `(版本 vX.Y.Z, N 个待提交)`。
+/// 多行报告格式，与平台 `status_to` 输出一致：
 ///
-/// 三个逻辑分支：
-///
-/// | 条件 | 示例输出 |
-/// |---|---|
-/// | `current_version = Some(v)` | `[cli]  待发布  (版本 v1.2.3, 5 个待提交)` |
-/// | `current_version = None, pending_commits > 0` | `[cli]  状态未知  (3 个待提交)` |
-/// | `current_version = None, pending_commits = 0` | `[cli]  未发布` |
+/// ```text
+///   [scope]
+///     状态:         已是最新
+///     路径:         src/cli
+///     最新版本:     v1.2.3
+///     未发布提交:   0
+///     变更日志:     CHANGELOG.md
+///     版本一致:     是
+/// ```
 impl std::fmt::Display for ReleaseState {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "[{}]  {}", self.scope, self.status)?;
-        if let Some(v) = &self.current_version {
-            write!(f, "  (版本 {}, {} 个待提交)", v, self.pending_commits)?;
-        } else if self.pending_commits > 0 {
-            write!(f, "  ({} 个待提交)", self.pending_commits)?;
+        writeln!(f, "  [{}]", self.scope)?;
+        writeln!(f, "    状态:         {}", self.status)?;
+        writeln!(f, "    路径:         {}", self.scope_path)?;
+        match &self.current_version {
+            Some(v) => writeln!(f, "    最新版本:     {}", v)?,
+            None => writeln!(f, "    最新版本:     (无)")?,
         }
-        Ok(())
+        writeln!(f, "    未发布提交:   {}", self.pending_commits)?;
+        writeln!(f, "    变更日志:     {}", self.changelog)?;
+        match self.version_consistent {
+            Some(true) => writeln!(f, "    版本一致:     是"),
+            Some(false) => writeln!(f, "    版本一致:     否"),
+            None => Ok(()),
+        }
     }
 }
 
@@ -191,42 +200,45 @@ mod tests {
     #[test]
     fn test_release_state_display() {
         let state = ReleaseState {
-            status: ReleaseStatus::Pending,
-            scope: "cli".into(),
-            scope_path: "src/cli".into(),
-            current_version: Some("v1.2.3".into()),
-            pending_commits: 5,
+            status: ReleaseStatus::Latest,
+            scope: "qtcloud-core".into(),
+            scope_path: "apps/qtcloud-core".into(),
+            current_version: Some("v2.1.0".into()),
+            pending_commits: 0,
             changelog: "CHANGELOG.md".into(),
             version_consistent: Some(true),
         };
         assert_eq!(
             format!("{}", state),
-            "[cli]  待发布  (版本 v1.2.3, 5 个待提交)"
+            "  [qtcloud-core]\n    状态:         已是最新\n    路径:         apps/qtcloud-core\n    最新版本:     v2.1.0\n    未发布提交:   0\n    变更日志:     CHANGELOG.md\n    版本一致:     是\n"
         );
 
         let state = ReleaseState {
             status: ReleaseStatus::Unreleased,
-            scope: "core".into(),
-            scope_path: "packages/core".into(),
+            scope: "(root)".into(),
+            scope_path: ".".into(),
             current_version: None,
             pending_commits: 0,
             changelog: "CHANGELOG.md".into(),
             version_consistent: None,
         };
-        assert_eq!(format!("{}", state), "[core]  未发布");
+        assert_eq!(
+            format!("{}", state),
+            "  [(root)]\n    状态:         未发布\n    路径:         .\n    最新版本:     (无)\n    未发布提交:   0\n    变更日志:     CHANGELOG.md\n"
+        );
 
         let state = ReleaseState {
-            status: ReleaseStatus::Latest,
-            scope: "(root)".into(),
-            scope_path: ".".into(),
-            current_version: Some("v5.0.0".into()),
-            pending_commits: 0,
+            status: ReleaseStatus::Inconsistent,
+            scope: "web".into(),
+            scope_path: "src/web".into(),
+            current_version: Some("v2.0.0".into()),
+            pending_commits: 3,
             changelog: "CHANGELOG.md".into(),
-            version_consistent: Some(true),
+            version_consistent: Some(false),
         };
         assert_eq!(
             format!("{}", state),
-            "[(root)]  已是最新  (版本 v5.0.0, 0 个待提交)"
+            "  [web]\n    状态:         版本冲突\n    路径:         src/web\n    最新版本:     v2.0.0\n    未发布提交:   3\n    变更日志:     CHANGELOG.md\n    版本一致:     否\n"
         );
     }
 }
