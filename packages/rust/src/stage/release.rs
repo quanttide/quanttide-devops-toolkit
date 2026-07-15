@@ -59,6 +59,27 @@ pub struct ReleaseState {
     pub version_consistent: Option<bool>,
 }
 
+/// 格式：`[scope]  状态`，有版本时附加 `(版本 vX.Y.Z, N 个待提交)`。
+///
+/// 三个逻辑分支：
+///
+/// | 条件 | 示例输出 |
+/// |---|---|
+/// | `current_version = Some(v)` | `[cli]  待发布  (版本 v1.2.3, 5 个待提交)` |
+/// | `current_version = None, pending_commits > 0` | `[cli]  状态未知  (3 个待提交)` |
+/// | `current_version = None, pending_commits = 0` | `[cli]  未发布` |
+impl std::fmt::Display for ReleaseState {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "[{}]  {}", self.scope, self.status)?;
+        if let Some(v) = &self.current_version {
+            write!(f, "  (版本 {}, {} 个待提交)", v, self.pending_commits)?;
+        } else if self.pending_commits > 0 {
+            write!(f, "  ({} 个待提交)", self.pending_commits)?;
+        }
+        Ok(())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -165,5 +186,47 @@ mod tests {
             version_consistent: None,
         };
         assert_eq!(state.status, ReleaseStatus::Unknown);
+    }
+
+    #[test]
+    fn test_release_state_display() {
+        let state = ReleaseState {
+            status: ReleaseStatus::Pending,
+            scope: "cli".into(),
+            scope_path: "src/cli".into(),
+            current_version: Some("v1.2.3".into()),
+            pending_commits: 5,
+            changelog: "CHANGELOG.md".into(),
+            version_consistent: Some(true),
+        };
+        assert_eq!(
+            format!("{}", state),
+            "[cli]  待发布  (版本 v1.2.3, 5 个待提交)"
+        );
+
+        let state = ReleaseState {
+            status: ReleaseStatus::Unreleased,
+            scope: "core".into(),
+            scope_path: "packages/core".into(),
+            current_version: None,
+            pending_commits: 0,
+            changelog: "CHANGELOG.md".into(),
+            version_consistent: None,
+        };
+        assert_eq!(format!("{}", state), "[core]  未发布");
+
+        let state = ReleaseState {
+            status: ReleaseStatus::Latest,
+            scope: "(root)".into(),
+            scope_path: ".".into(),
+            current_version: Some("v5.0.0".into()),
+            pending_commits: 0,
+            changelog: "CHANGELOG.md".into(),
+            version_consistent: Some(true),
+        };
+        assert_eq!(
+            format!("{}", state),
+            "[(root)]  已是最新  (版本 v5.0.0, 0 个待提交)"
+        );
     }
 }
