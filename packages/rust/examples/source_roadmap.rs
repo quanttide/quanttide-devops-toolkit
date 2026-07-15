@@ -1,11 +1,14 @@
-//! ROADMAP 解析与验证 — 反映 CLI `plan status` / `plan audit` 的底层逻辑。
+//! 场景：CLI 需要解析 ROADMAP.md 展示每个版本的完成进度，并自动发现格式问题（版本号不规范、
+//! 分类大小写不标准、checkbox 格式错误）帮助用户整改。
 //!
-//! 展示：解析 ROADMAP.md → 版本进度 → 格式验证。
+//! 手写 regex 解析 ROADMAP 容易漏边界情况（v 前缀、中文状态标签、未知分类）。
+//! `Roadmap::from_str` 按 Keep a Changelog 变体解析，支持自定义分类；`validate` 报告
+//! 每行问题位置，便于 CLI 给出精确的修改建议。
 //!
 //! # 运行
 //!
-//! ```bash
-//! cargo run --example roadmap
+//! ```sh
+//! cargo run --example source_roadmap
 //! ```
 
 use quanttide_devops::source::roadmap::Roadmap;

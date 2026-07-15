@@ -1,14 +1,17 @@
-//! 配置文件版本读取与语言检测 — 反映 CLI `contract status` / `build status` 的底层逻辑。
+//! 场景：CLI 走进一个陌生目录，需要知道"这是什么语言的项目？版本号是多少？"来决定后续
+//! 调用哪个工具链去构建、测试、发布。
 //!
-//! 展示：`detect_languages` → `read_config_versions` → `Contract::auto_detect`。
+//! `detect_languages` 独立检查每种语言的标志文件，不损失 monorepo 的多语言信息。
+//! `read_config_versions` 扫描已知配置文件（Cargo.toml / pyproject.toml / package.json /
+//! pubspec.yaml）提取版本号——文件格式不同但调用方拿到的是统一的结构。
 //!
 //! # 运行
 //!
-//! ```bash
-//! cargo run --example config_file /path/to/repo
+//! ```sh
+//! cargo run --example source_config_file /path/to/repo
 //! ```
 //!
-//! 不传路径时，在当前目录生成临时文件来演示。
+//! 不传路径时创建临时目录演示。
 
 fn main() {
     let repo_path = std::env::args()

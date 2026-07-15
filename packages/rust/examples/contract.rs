@@ -1,8 +1,12 @@
-//! Contract 加载、构建、序列化、验证与自动检测 — 对应 CLI `contract status` 的完整数据流。
+//! 场景：CLI 需要加载用户的契约配置，但必须容忍项目没有 `.quanttide/devops/contract.yaml`。
+//!
+//! `load_or_default` 优先读文件，不存在时自动扫描目录推测 scope 和语言。你需要能
+//! 从任意来源构建 Contract（从零构建 / YAML 解析 / auto_detect），并验算 scope 目录是否
+//! 存在、用便捷访问器查询 scope 级别的发布配置和测试阈值。
 //!
 //! # 运行
 //!
-//! ```bash
+//! ```sh
 //! cargo run --example contract                     # 从零构建 + 序列化 + 自动检测（临时目录）
 //! cargo run --example contract /path/to/repo       # 加载实际仓库的契约
 //! ```

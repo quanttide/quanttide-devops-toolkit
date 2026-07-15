@@ -1,9 +1,15 @@
-//! Git tag 过滤、semver 解析、TagSource trait 与 mock 注入 — 覆盖 `source::git_tag` 全功能。
+//! 场景：CLI 需要回答"这个 scope 最新的发布版本是什么"。但 git tag 可能带 scope 前缀
+//!（`cli/v0.1.0`）、v 前缀（`v1.0.0`），甚至是非法 semver（ `not-a-version` ）。
+//!
+//! `filter_latest_tag` 按 scope 过滤 + semver 排序 + unscoped 兜底，帮你安全地定位
+//! 最新版本。但真正的架构难点是：怎么让业务逻辑可测？[`TagSource`] trait 把 tag 来源抽象
+//! 出来——生产环境用 `GixTagSource`，测试用 mock，核心逻辑（过滤、排序、兜底）在两种
+//! 环境下完全一致。
 //!
 //! # 运行
 //!
 //! ```sh
-//! cargo run --example git_tag
+//! cargo run --example source_git_tag
 //! ```
 
 use quanttide_devops::source::git_tag::{

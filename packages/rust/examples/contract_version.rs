@@ -1,12 +1,15 @@
-//! 版本号验证、标准化与一致性检查 — CLI `release audit` / `release publish` 的核心规则。
+//! 场景：CLI 需要在 release publish 前检查版本合法性——格式是否标准、tag 与配置文件版本是否一致。
 //!
-//! 展示：`validate_version` → `normalize_version` → `check_version_consistency` → `verify_version`（需 git repo）。
+//! 手动写版本号正则又烦又容易漏。`validate_version` 覆盖了 v 前缀、scope 前缀、pre-release
+//! 等常见格式；`normalize_version` 把 `cli/v0.1.0` 统一成 `0.1.0` 方便比较；
+//! `check_version_consistency` 确保 tag 和所有配置文件的版本号没有冲突——避免发版后发现
+//! Cargo.toml 和 git tag 版本对不上。
 //!
 //! # 运行
 //!
-//! ```bash
-//! cargo run --example version                      # 纯函数部分
-//! cargo run --example version /path/to/repo        # 加上 verify_version（需 git repo + tag）
+//! ```sh
+//! cargo run --example contract_version                      # 纯函数部分
+//! cargo run --example contract_version /path/to/repo        # 加上 verify_version（需 git repo + tag）
 //! ```
 
 use std::path::PathBuf;
@@ -103,7 +106,7 @@ fn main() {
         }
     } else {
         println!("\n4. verify_version — 跳过（未传入 git 仓库路径）");
-        println!("   传入路径以验证: cargo run --example version /path/to/repo");
+        println!("   传入路径以验证: cargo run --example contract_version /path/to/repo");
     }
 }
 

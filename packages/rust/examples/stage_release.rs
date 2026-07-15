@@ -1,11 +1,14 @@
-//! 发布状态报告 — 结合 git tag 与契约配置，计算多 scope 的发布生命周期状态。
+//! 场景：CLI 需要给用户展示一个 scope 当前处于发布生命周期的哪个阶段——从未发布、
+//! 已是最新、有变更待发布、还是版本冲突。
 //!
-//! 展示：构造 ReleaseState → 通过 Display 输出结构化报告 → 模拟状态迁移。
+//! 这不是简单的"有没有 tag"。你需要综合 git tag 版本、config 文件版本、pending commits
+//! 多个事实源才能算出来。`ReleaseState` + `Display` 帮你把计算和输出分离：计算时你操心
+//! 数据和规则，输出时直接 `print!("{}", state)`。
 //!
 //! # 运行
 //!
 //! ```sh
-//! cargo run --example release
+//! cargo run --example stage_release
 //! ```
 
 use quanttide_devops::stage::release::{ReleaseState, ReleaseStatus};

@@ -1,14 +1,16 @@
-//! CHANGELOG 读取与生成 — 覆盖 `source::changelog` 的查询、编辑、生成全流程。
+//! 场景：CLI 需要管理 CHANGELOG.md——给用户显示某个版本的 release notes、追加新版本条目、
+//! 或者从 git log 自动生成草稿。
 //!
-//! - 解析、查询（`from_str` / `contains_version` / `release_notes` / `versions` / `latest_version`）
-//! - 条目追加（`append_entry`）
-//! - 生成 pipeline（`collect_git_log` → `build_changelog_prompt`）
+//! `Changelog::from_str` / `from_path` 解析已有文件（兼容 v 前缀），
+//! `contains_version` 避免重复追加，`release_notes` 提取单个版本的正文给 GitHub Release 用。
+//! `append_entry` 自动插入到已有版本之前、去重、标准化版本号。`collect_git_log` +
+//! `build_changelog_prompt` 配合 LLM 生成 CHANGELOG 草稿。
 //!
 //! # 运行
 //!
 //! ```sh
-//! cargo run --example changelog                # 查询 + 编辑（纯函数，无需仓库）
-//! cargo run --example changelog /path/to/repo  # 额外执行生成 pipeline（需 git 仓库）
+//! cargo run --example source_changelog                # 查询 + 编辑（纯函数，无需仓库）
+//! cargo run --example source_changelog /path/to/repo  # 额外执行生成 pipeline（需 git 仓库）
 //! ```
 
 use std::path::PathBuf;
