@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## [0.3.3] - 2026-07-15
+
+### Fixed
+
+- CI 覆盖率门禁：补充 `test_release_state_new` 确保 `new()` 构造方法被单元测试覆盖。
+
 ## [0.3.2] - 2026-07-15
 
 ### Added

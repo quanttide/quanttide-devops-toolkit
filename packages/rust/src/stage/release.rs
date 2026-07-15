@@ -235,6 +235,31 @@ mod tests {
     }
 
     #[test]
+    fn test_release_state_new() {
+        let s = ReleaseState::new(ReleaseStatus::Unreleased, "cli", "src/cli", None, 0, None);
+        assert_eq!(s.scope, "cli");
+        assert_eq!(s.scope_path, "src/cli");
+        assert_eq!(s.status, ReleaseStatus::Unreleased);
+        assert!(s.current_version.is_none());
+        assert_eq!(s.pending_commits, 0);
+        assert_eq!(s.changelog, "CHANGELOG.md");
+        assert!(s.version_consistent.is_none());
+
+        let s = ReleaseState::new(
+            ReleaseStatus::Pending,
+            "(root)",
+            ".",
+            Some("v2.0.0".into()),
+            5,
+            Some(false),
+        );
+        assert_eq!(s.scope, "(root)");
+        assert_eq!(s.current_version.as_deref(), Some("v2.0.0"));
+        assert_eq!(s.pending_commits, 5);
+        assert_eq!(s.version_consistent, Some(false));
+    }
+
+    #[test]
     fn test_release_state_display() {
         let state = ReleaseState {
             status: ReleaseStatus::Latest,
