@@ -1,5 +1,24 @@
 # CHANGELOG
 
+## [0.4.1] - 2026-07-16
+
+### Changed
+
+- `source::roadmap` 重构为目录模块：`mod.rs`（类型+访问器）、`parse.rs`（解析）、`validate.rs`（校验），
+  各 ~300 行，测试分散内联
+- 4 个错误类型迁移到 `#[derive(thiserror::Error)]`：`ContractError`、`ChangelogError`、
+  `RoadmapError`、`TagError`，消除手写 `Display`/`Error`/`From` 样板
+
+### Added
+
+- 全部 19 个源文件补全 `//!` 模块文档（覆盖率 0% → 100%）
+
+### Fixed
+
+- 移除 `source::roadmap` 死代码 `parse_version_header`（已被 `classify_line` 取代）
+- 修复 `classify_line` lifetime 警告
+- 清理未使用的 import
+
 ## [0.4.0] - 2026-07-16
 
 ### Added
