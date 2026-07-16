@@ -1,5 +1,24 @@
 # CHANGELOG
 
+## [0.4.0] - 2026-07-16
+
+### Added
+
+- `stage::build::CiRun` — CI 运行记录数据模型。
+- `stage::test::{TestSummary, Coverage, AuditReport}` — 测试结果汇总与审计数据模型。
+- `source::git::submodule::{SubmoduleStatus, Submodule, RepoState, AggregateStatus, HealthIssue}` — 子模块数据模型。
+- `stage::release::ReleaseStateBuilder` — 链式构建器，替代 6 参数构造。
+
+### Changed
+
+- `source::git_repo` / `source::git_tag` 重构为 `source::git/` 模块。
+- `Contract::find_scope_by_path` 新增 `repo_path` 参数。
+- `Changelog` 移除 `unsafe transmute`，改用完全安全的所有权数据。
+
+### Fixed
+
+- 修复 clippy 警告 3 处（冗余引用、嵌套 if、文档注释格式）。
+
 ## [0.3.3] - 2026-07-15
 
 ### Fixed
