@@ -6,7 +6,7 @@
 
 ### 超长函数（code audit）
 
-- [ ] `source/roadmap.rs` 两处超长：`fn` 85 行 + `fn` 66 行 — 提取子函数
+- [x] `source/roadmap.rs` 两处超长已修复：`from_str` 85→3 行，`validate` 66→4 行，委派给 7 个独立函数
 - [ ] `source/changelog.rs` 两处超长：`fn` 49 行 + `fn` 48 行 — 提取子函数
 - [ ] `contract/core.rs` `fn` 84 行 — 提取子函数
 - [ ] `contract/version.rs` 两处超长：`fn` 57 行 + `fn` 59 行 — 提取子函数
@@ -18,7 +18,7 @@
 
 ### 嵌套深度（code audit）
 
-- [ ] `source/roadmap.rs` 嵌套 7 层 — 提前 return / 提取子函数
+- [x] `source/roadmap.rs` 嵌套 7→3 层：用 `LineKind` 枚举 + `match` 替代 `if/else`
 - [ ] `source/config_file.rs` 嵌套 6 层 — 提前 return
 - [ ] `contract/scope.rs` 嵌套 6 层 — 提取子函数
 - [ ] `contract/core.rs` 嵌套 6 层 — 提前 return
@@ -26,7 +26,7 @@
 
 ### 圈复杂度（code audit）
 
-- [ ] `source/roadmap.rs` `fn` 圈复杂度 14 — 提取条件分支
+- [x] `source/roadmap.rs` 圈复杂度 14→≤6：每个分支独立成函数
 - [ ] `examples/contract_version.rs` `main()` 圈复杂度 12 — 提取子函数
 
 ### 模块文档覆盖率
@@ -35,7 +35,7 @@
 
 ### 超长文件
 
-- [ ] `source/roadmap.rs` (833 行) — 拆分模块
+- [ ] `source/roadmap.rs` (894 行) — 内部结构已重构（函数拆分、枚举分类），考虑将测试移到 `tests/` 集成测试文件
 
 ### CI
 
