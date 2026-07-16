@@ -111,6 +111,9 @@ name = "bitflags"
 version = "2.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b4388bee8683e3d04af747c73422af53102d2bd24d9eadb6cbc100baef4b43f8"
+dependencies = [
+ "serde_core",
+]
 
 [[package]]
 name = "bstr"
@@ -476,6 +479,7 @@ dependencies = [
  "gix-submodule",
  "gix-tempfile",
  "gix-trace",
+ "gix-transport",
  "gix-traverse",
  "gix-url",
  "gix-utils",
@@ -486,6 +490,7 @@ dependencies = [
  "once_cell",
  "parking_lot",
  "regex",
+ "serde",
  "signal-hook",
  "smallvec",
  "thiserror",
@@ -501,6 +506,7 @@ dependencies = [
  "gix-date",
  "gix-utils",
  "itoa",
+ "serde",
  "thiserror",
  "winnow",
 ]
@@ -531,6 +537,7 @@ dependencies = [
  "gix-quote",
  "gix-trace",
  "kstring",
+ "serde",
  "smallvec",
  "thiserror",
  "unicode-bom",
@@ -577,6 +584,7 @@ dependencies = [
  "gix-features",
  "gix-hash",
  "memmap2",
+ "serde",
  "thiserror",
 ]
 
@@ -628,6 +636,7 @@ dependencies = [
  "gix-sec",
  "gix-trace",
  "gix-url",
+ "serde",
  "thiserror",
 ]
 
@@ -640,6 +649,7 @@ dependencies = [
  "bstr",
  "itoa",
  "jiff 0.2.31",
+ "serde",
  "thiserror",
 ]
 
@@ -765,6 +775,7 @@ dependencies = [
  "bstr",
  "gix-features",
  "gix-path",
+ "serde",
 ]
 
 [[package]]
@@ -774,6 +785,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0b5eccc17194ed0e67d49285e4853307e4147e95407f91c1c3e4a13ba9f4e4ce"
 dependencies = [
  "faster-hex",
+ "serde",
  "thiserror",
 ]
 
@@ -798,6 +810,7 @@ dependencies = [
  "gix-glob",
  "gix-path",
  "gix-trace",
+ "serde",
  "unicode-bom",
 ]
 
@@ -825,6 +838,7 @@ dependencies = [
  "libc",
  "memmap2",
  "rustix 0.38.44",
+ "serde",
  "smallvec",
  "thiserror",
 ]
@@ -849,6 +863,7 @@ dependencies = [
  "bstr",
  "gix-actor",
  "gix-date",
+ "serde",
  "thiserror",
 ]
 
@@ -884,6 +899,7 @@ dependencies = [
  "gix-utils",
  "gix-validate 0.9.4",
  "itoa",
+ "serde",
  "smallvec",
  "thiserror",
  "winnow",
@@ -906,6 +922,7 @@ dependencies = [
  "gix-path",
  "gix-quote",
  "parking_lot",
+ "serde",
  "tempfile",
  "thiserror",
 ]
@@ -924,6 +941,7 @@ dependencies = [
  "gix-object",
  "gix-path",
  "memmap2",
+ "serde",
  "smallvec",
  "thiserror",
  "uluru",
@@ -1008,6 +1026,7 @@ dependencies = [
  "gix-transport",
  "gix-utils",
  "maybe-async",
+ "serde",
  "thiserror",
  "winnow",
 ]
@@ -1040,6 +1059,7 @@ dependencies = [
  "gix-utils",
  "gix-validate 0.9.4",
  "memmap2",
+ "serde",
  "thiserror",
  "winnow",
 ]
@@ -1073,6 +1093,7 @@ dependencies = [
  "gix-object",
  "gix-revwalk",
  "gix-trace",
+ "serde",
  "thiserror",
 ]
 
@@ -1100,6 +1121,7 @@ dependencies = [
  "bitflags 2.13.0",
  "gix-path",
  "libc",
+ "serde",
  "windows-sys 0.52.0",
 ]
 
@@ -1112,6 +1134,7 @@ dependencies = [
  "bstr",
  "gix-hash",
  "gix-lock",
+ "serde",
  "thiserror",
 ]
 
@@ -1188,6 +1211,7 @@ dependencies = [
  "gix-quote",
  "gix-sec",
  "gix-url",
+ "serde",
  "thiserror",
 ]
 
@@ -1218,6 +1242,7 @@ dependencies = [
  "gix-features",
  "gix-path",
  "percent-encoding",
+ "serde",
  "thiserror",
  "url",
 ]
@@ -1270,6 +1295,7 @@ dependencies = [
  "gix-object",
  "gix-path",
  "gix-validate 0.9.4",
+ "serde",
 ]
 
 [[package]]
@@ -1572,6 +1598,7 @@ version = "2.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "558bf9508a558512042d3095138b1f7b8fe90c5467d94f9f1da28b3731c5dbd1"
 dependencies = [
+ "serde",
  "static_assertions",
 ]
 
@@ -1822,6 +1849,7 @@ dependencies = [
  "parse-changelog",
  "semver",
  "serde",
+ "serde_json",
  "serde_yaml",
  "tempfile",
 ]
@@ -1975,6 +2003,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "serde_json"
+version = "1.0.150"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e8014e44b4736ed0538adeecded0fce2a272f22dc9578a7eb6b2d9993c74cfb9"
+dependencies = [
+ "itoa",
+ "memchr",
+ "serde",
+ "serde_core",
+ "zmij",
+]
+
+[[package]]
 name = "serde_yaml"
 version = "0.9.34+deprecated"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2036,6 +2077,9 @@ name = "smallvec"
 version = "1.15.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8ed6a63f02c8539c91a8685a86f4099661ba3da017932f6ebbea6de3f0fa7c90"
+dependencies = [
+ "serde",
+]
 
 [[package]]
 name = "stable_deref_trait"
@@ -2471,3 +2515,9 @@ dependencies = [
  "quote",
  "syn",
 ]
+
+[[package]]
+name = "zmij"
+version = "1.0.23"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "29666d0abbfad1e3dc4dcf6144730dd3a3ab225bbbdac83319345b1b44ccfc1b"
