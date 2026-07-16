@@ -1,7 +1,7 @@
 use std::path::Path;
 
 use crate::source::roadmap::{
-    Roadmap, RoadmapChecklistItem, RoadmapError, RoadmapVersion, RoadmapVersionBuilder,
+    Roadmap, RoadmapError, RoadmapVersion, RoadmapVersionBuilder,
 };
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -51,7 +51,7 @@ enum LineKind<'a> {
 }
 
 /// 对一行按 ROADMAP 格式分类。
-fn classify_line(line: &str) -> LineKind {
+fn classify_line(line: &str) -> LineKind<'_> {
     let trimmed = line.trim();
     if trimmed.is_empty() || trimmed.starts_with('>') {
         return LineKind::Skip;
@@ -144,34 +144,6 @@ fn parse_versions(lines: &[&str]) -> Result<Vec<RoadmapVersion>, RoadmapError> {
 /// 标准化版本号：去掉 `v` 前缀。
 fn normalize_version(v: &str) -> String {
     v.strip_prefix('v').unwrap_or(v).to_string()
-}
-
-// ═══════════════════════════════════════════════════════════════════════
-// 辅助函数
-// ═══════════════════════════════════════════════════════════════════════
-
-/// 解析 `## [0.1.5] — 待实施` 格式的版本标题。
-fn parse_version_header(s: &str) -> Result<(String, String), String> {
-    let inner = s[3..].trim();
-    if !inner.starts_with('[') {
-        return Err("版本号应以 `[` 开头".into());
-    }
-    let close_bracket = inner.find(']').ok_or("缺少 `]`".to_string())?;
-    let version = inner[1..close_bracket].to_string();
-    if version.is_empty() {
-        return Err("版本号为空".into());
-    }
-    let version = version.strip_prefix('v').unwrap_or(&version).to_string();
-    let rest = inner[close_bracket + 1..].trim();
-    let status = if let Some(pos) = rest.find('—') {
-        rest[pos + 3..].trim().to_string()
-    } else if let Some(pos) = rest.find('-') {
-        rest[pos + 1..].trim().to_string()
-    } else {
-        rest.to_string()
-    };
-
-    Ok((version, status))
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -353,38 +325,4 @@ mod tests {
         assert!(r.unwrap_err().to_string().contains("未找到任何版本区块"));
     }
 
-    // ── parse_version_header ─────────────────────────────────────
-
-    #[test]
-    fn test_parse_version_header_normal() {
-        let (v, s) = parse_version_header("## [0.1.5] — 待实施").unwrap();
-        assert_eq!(v, "0.1.5");
-        assert_eq!(s, "待实施");
-    }
-
-    #[test]
-    fn test_parse_version_header_no_bracket() {
-        let r = parse_version_header("## 0.1.5 — test");
-        assert!(r.is_err());
-    }
-
-    #[test]
-    fn test_parse_version_header_empty_version() {
-        let r = parse_version_header("## [] — test");
-        assert!(r.is_err());
-    }
-
-    #[test]
-    fn test_parse_version_header_hyphen() {
-        let (v, s) = parse_version_header("## [0.1.0] - released").unwrap();
-        assert_eq!(v, "0.1.0");
-        assert_eq!(s, "released");
-    }
-
-    #[test]
-    fn test_parse_version_header_no_status() {
-        let (v, s) = parse_version_header("## [0.1.0]").unwrap();
-        assert_eq!(v, "0.1.0");
-        assert_eq!(s, "");
-    }
 }

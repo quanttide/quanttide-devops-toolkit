@@ -132,7 +132,6 @@ fn check_checkbox_format(lines: &[&str], scope: &str) -> Vec<RoadmapIssue> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use crate::source::roadmap::Roadmap;
 
     fn sample_roadmap() -> &'static str {
