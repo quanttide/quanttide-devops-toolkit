@@ -130,76 +130,8 @@ impl Roadmap {
     #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Result<Self, RoadmapError> {
         let lines: Vec<&str> = s.lines().collect();
-        if lines.is_empty() {
-            return Err(RoadmapError::Parse("ROADMAP 为空".into()));
-        }
-
-        // 校验第一行是否以 `# ROADMAP` 开头
-        let first = lines[0].trim();
-        if !first.starts_with("# ROADMAP") {
-            return Err(RoadmapError::Parse(format!(
-                "首行应包含 `# ROADMAP`，发现: {}",
-                first
-            )));
-        }
-
-        let mut versions: Vec<RoadmapVersion> = Vec::new();
-        let mut current_version: Option<RoadmapVersionBuilder> = None;
-
-        for line in &lines[1..] {
-            let trimmed = line.trim();
-
-            // 跳过空行和 blockquote
-            if trimmed.is_empty() || trimmed.starts_with('>') {
-                continue;
-            }
-
-            if trimmed.starts_with("## ") {
-                // 新版本区块开始
-                if let Some(builder) = current_version.take() {
-                    versions.push(builder.build());
-                }
-                match parse_version_header(trimmed) {
-                    Ok((version, status)) => {
-                        current_version = Some(RoadmapVersionBuilder::new(version, status));
-                    }
-                    Err(e) => {
-                        return Err(RoadmapError::Parse(format!(
-                            "版本标题格式无效: {} — {}",
-                            trimmed, e
-                        )));
-                    }
-                }
-            } else if let Some(ref mut builder) = current_version {
-                if trimmed.starts_with("### ") {
-                    // 新分类
-                    let category = trimmed
-                        .strip_prefix("### ")
-                        .unwrap_or("")
-                        .trim()
-                        .to_string();
-                    builder.add_category(category);
-                } else if trimmed.starts_with("- [") && trimmed.len() > 5 {
-                    // checklist 条目：`- [ ]` 或 `- [x]`
-                    let completed = trimmed.as_bytes()[3] == b'x';
-                    let description = trimmed[5..].trim().to_string();
-                    builder.add_issue(completed, description);
-                }
-                // 其他行（描述文本）忽略
-            }
-        }
-
-        // 收尾最后一个版本
-        if let Some(builder) = current_version.take() {
-            versions.push(builder.build());
-        }
-
-        if versions.is_empty() {
-            return Err(RoadmapError::Parse(
-                "未找到任何版本区块 (`## [x.y.z]`)".into(),
-            ));
-        }
-
+        validate_first_line(lines.first().copied())?;
+        let versions = parse_versions(&lines[1..])?;
         Ok(Self {
             raw: s.to_string(),
             versions,
@@ -242,66 +174,11 @@ impl Roadmap {
     ///
     /// `scope` 参数用于标记问题所属范围（通常传入 scope name）。
     pub fn validate(&self, scope: &str) -> Vec<RoadmapIssue> {
-        let mut issues = Vec::new();
         let lines: Vec<&str> = self.raw.lines().collect();
-
-        for (line_number, line) in lines.iter().enumerate() {
-            let trimmed = line.trim();
-            let line_number = line_number + 1;
-
-            // 检查版本号格式（`## [0.1.0]` 或 `## [v0.1.0]`）
-            if trimmed.starts_with("## [")
-                && let Some(end) = trimmed.find(']')
-            {
-                let raw_version = &trimmed[4..end];
-                // 去 v 前缀后验证 X.Y.Z 格式
-                let clean = raw_version.strip_prefix('v').unwrap_or(raw_version);
-                let parts: Vec<&str> = clean.split('.').collect();
-                if parts.len() != 3
-                    || parts
-                        .iter()
-                        .any(|p| p.is_empty() || !p.chars().all(|c| c.is_ascii_digit()))
-                {
-                    issues.push(RoadmapIssue {
-                        line: line_number,
-                        scope: scope.to_string(),
-                        message: format!("版本号格式异常（期待 `X.Y.Z`）: `{}`", raw_version),
-                    });
-                }
-            }
-
-            // 检查分类标题的标准大小写
-            if trimmed.starts_with("### ") {
-                let category = trimmed.strip_prefix("### ").unwrap_or("").trim();
-                let expected = category_expected_case(category);
-                if category != expected {
-                    issues.push(RoadmapIssue {
-                        line: line_number,
-                        scope: scope.to_string(),
-                        message: format!(
-                            "分类标题大小写不标准: `### {}`，标准写法为 `### {}`",
-                            category, expected
-                        ),
-                    });
-                }
-            }
-
-            // 检查 checklist 格式
-            if trimmed.starts_with("- [") && trimmed.len() > 5 {
-                let third = trimmed.as_bytes().get(3);
-                if third != Some(&b' ') && third != Some(&b'x') {
-                    issues.push(RoadmapIssue {
-                        line: line_number,
-                        scope: scope.to_string(),
-                        message: format!(
-                            "checkbox 格式异常: `{}`，标准为 `- [ ]` 或 `- [x]`",
-                            trimmed
-                        ),
-                    });
-                }
-            }
-        }
-
+        let mut issues = Vec::new();
+        issues.extend(check_version_headers(&lines, scope));
+        issues.extend(check_category_case(&lines, scope));
+        issues.extend(check_checkbox_format(&lines, scope));
         issues
     }
 }
@@ -317,6 +194,190 @@ fn category_expected_case(s: &str) -> String {
         "security" | "Security" => "Security".into(),
         _ => s.to_string(),
     }
+}
+
+/// 检查版本号格式（`## [X.Y.Z]`）。非版本号行自动返回空 vec。
+fn check_version_headers(lines: &[&str], scope: &str) -> Vec<RoadmapIssue> {
+    lines.iter().enumerate().filter_map(|(i, line)| {
+        let trimmed = line.trim();
+        if !trimmed.starts_with("## [") {
+            return None;
+        }
+        let end = trimmed.find(']')?;
+        let raw_version = &trimmed[4..end];
+        let clean = raw_version.strip_prefix('v').unwrap_or(raw_version);
+        let parts: Vec<&str> = clean.split('.').collect();
+        if parts.len() != 3
+            || parts.iter().any(|p| p.is_empty() || !p.chars().all(|c| c.is_ascii_digit()))
+        {
+            Some(RoadmapIssue {
+                line: i + 1,
+                scope: scope.to_string(),
+                message: format!("版本号格式异常（期待 `X.Y.Z`）: `{}`", raw_version),
+            })
+        } else {
+            None
+        }
+    }).collect()
+}
+
+/// 检查分类标题的标准大小写。非分类行自动返回空 vec。
+fn check_category_case(lines: &[&str], scope: &str) -> Vec<RoadmapIssue> {
+    lines.iter().enumerate().filter_map(|(i, line)| {
+        let trimmed = line.trim();
+        if !trimmed.starts_with("### ") {
+            return None;
+        }
+        let category = trimmed.strip_prefix("### ").unwrap_or("").trim();
+        let expected = category_expected_case(category);
+        if category != expected {
+            Some(RoadmapIssue {
+                line: i + 1,
+                scope: scope.to_string(),
+                message: format!(
+                    "分类标题大小写不标准: `### {}`，标准写法为 `### {}`",
+                    category, expected
+                ),
+            })
+        } else {
+            None
+        }
+    }).collect()
+}
+
+/// 检查 checkbox 格式。非 checklist 行自动返回空 vec。
+fn check_checkbox_format(lines: &[&str], scope: &str) -> Vec<RoadmapIssue> {
+    lines.iter().enumerate().filter_map(|(i, line)| {
+        let trimmed = line.trim();
+        if !trimmed.starts_with("- [") || trimmed.len() <= 5 {
+            return None;
+        }
+        let third = trimmed.as_bytes().get(3);
+        if third != Some(&b' ') && third != Some(&b'x') {
+            Some(RoadmapIssue {
+                line: i + 1,
+                scope: scope.to_string(),
+                message: format!(
+                    "checkbox 格式异常: `{}`，标准为 `- [ ]` 或 `- [x]`",
+                    trimmed
+                ),
+            })
+        } else {
+            None
+        }
+    }).collect()
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// 行分类器
+// ═══════════════════════════════════════════════════════════════════════
+
+/// 行类型，用于降低解析循环的嵌套深度。
+enum LineKind<'a> {
+    /// `## [version] — status`
+    VersionHeader(&'a str, &'a str),
+    /// `### CategoryName`
+    Category(&'a str),
+    /// `- [ ] desc` 或 `- [x] desc`
+    Checklist { completed: bool, desc: &'a str },
+    /// 应跳过的行（空行、blockquote）
+    Skip,
+}
+
+/// 对一行按 ROADMAP 格式分类。
+fn classify_line(line: &str) -> LineKind {
+    let trimmed = line.trim();
+    if trimmed.is_empty() || trimmed.starts_with('>') {
+        return LineKind::Skip;
+    }
+    if trimmed.starts_with("## ") {
+        let inner = trimmed[3..].trim();
+        if let Some(end) = inner.find(']') {
+            let version = &inner[1..end];
+            let rest = inner[end + 1..].trim();
+            let status = rest
+                .strip_prefix('—')
+                .or_else(|| rest.strip_prefix('-'))
+                .map(|s| s.trim())
+                .unwrap_or("");
+            return LineKind::VersionHeader(version, status);
+        }
+    }
+    if trimmed.starts_with("### ") {
+        return LineKind::Category(trimmed.strip_prefix("### ").unwrap_or("").trim());
+    }
+    if trimmed.starts_with("- [") && trimmed.len() > 5 {
+        let completed = trimmed.as_bytes()[3] == b'x';
+        return LineKind::Checklist {
+            completed,
+            desc: trimmed[5..].trim(),
+        };
+    }
+    LineKind::Skip
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// 解析循环
+// ═══════════════════════════════════════════════════════════════════════
+
+/// 校验第一行是否以 `# ROADMAP` 开头。
+fn validate_first_line(first: Option<&str>) -> Result<(), RoadmapError> {
+    match first {
+        None => Err(RoadmapError::Parse("ROADMAP 为空".into())),
+        Some(s) if s.trim().starts_with("# ROADMAP") => Ok(()),
+        Some(s) => Err(RoadmapError::Parse(format!(
+            "首行应包含 `# ROADMAP`，发现: {}",
+            s.trim()
+        ))),
+    }
+}
+
+/// 解析版本区块，返回所有版本（自上而下 = 最新优先）。
+fn parse_versions(lines: &[&str]) -> Result<Vec<RoadmapVersion>, RoadmapError> {
+    let mut versions: Vec<RoadmapVersion> = Vec::new();
+    let mut current_version: Option<RoadmapVersionBuilder> = None;
+
+    for line in lines {
+        match classify_line(line) {
+            LineKind::Skip => {}
+            LineKind::VersionHeader(version, status) => {
+                if let Some(builder) = current_version.take() {
+                    versions.push(builder.build());
+                }
+                current_version = Some(RoadmapVersionBuilder::new(
+                    normalize_version(version),
+                    status.to_string(),
+                ));
+            }
+            LineKind::Category(name) => {
+                if let Some(ref mut builder) = current_version {
+                    builder.add_category(name.to_string());
+                }
+            }
+            LineKind::Checklist { completed, desc } => {
+                if let Some(ref mut builder) = current_version {
+                    builder.add_issue(completed, desc.to_string());
+                }
+            }
+        }
+    }
+
+    if let Some(builder) = current_version.take() {
+        versions.push(builder.build());
+    }
+
+    if versions.is_empty() {
+        return Err(RoadmapError::Parse(
+            "未找到任何版本区块 (`## [x.y.z]`)".into(),
+        ));
+    }
+
+    Ok(versions)
+}
+
+/// 标准化版本号：去掉 `v` 前缀（与 CHANGELOG 的 parse-changelog 行为一致）。
+fn normalize_version(v: &str) -> String {
+    v.strip_prefix('v').unwrap_or(v).to_string()
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -768,7 +829,7 @@ mod tests {
 
     #[test]
     fn test_from_str_parse_version_header_error() {
-        // 通过 from_str 触发 parse_version_header 报错分支
+        // 无方括号的版本标题被 classify_line 跳过 → 无版本区块 → 报错
         let s = "\
 # ROADMAP
 
@@ -776,7 +837,7 @@ mod tests {
 ";
         let r = Roadmap::from_str(s);
         assert!(r.is_err());
-        assert!(r.unwrap_err().to_string().contains("版本标题格式无效"));
+        assert!(r.unwrap_err().to_string().contains("未找到任何版本区块"));
     }
 
     #[test]
