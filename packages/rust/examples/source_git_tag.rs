@@ -12,7 +12,7 @@
 //! cargo run --example source_git_tag
 //! ```
 
-use quanttide_devops::source::git_tag::{
+use quanttide_devops::source::git::tag::{
     filter_latest_tag, filter_latest_version, filter_tags_by_scope, parse_semver_tag,
     latest_tag_with, latest_version_with, tags_for_scope_with, TagSource, TagError,
 };

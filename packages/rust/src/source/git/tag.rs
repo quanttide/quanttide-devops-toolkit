@@ -12,9 +12,9 @@
 //! # 示例
 //!
 //! ```ignore
-//! use quanttide_devops::source::git_tag::latest_tag;
+//! use quanttide_devops::source::git::tag::latest_tag;
 //! let tag = latest_tag(repo_path, "cli")?;  // "cli/v0.2.0"
-//! let ver = quanttide_devops::source::git_tag::latest_version(repo_path, "cli")?;  // "0.2.0"
+//! let ver = quanttide_devops::source::git::tag::latest_version(repo_path, "cli")?;  // "0.2.0"
 //! ```
 
 use crate::contract::version::normalize_version;
@@ -99,7 +99,7 @@ impl TagSource for GixTagSource {
 /// - 使用 semver 排序
 ///
 /// ```
-/// use quanttide_devops::source::git_tag::filter_latest_tag;
+/// use quanttide_devops::source::git::tag::filter_latest_tag;
 ///
 /// let tags = vec!["cli/v0.2.0".into(), "cli/v0.1.0".into(), "v1.0.0".into()];
 /// assert_eq!(filter_latest_tag(&tags, "cli"), Some("cli/v0.2.0".into()));
@@ -130,7 +130,7 @@ pub fn filter_latest_tag(tags: &[String], scope_name: &str) -> Option<String> {
 /// 与 [`filter_latest_tag`] 的区别：后者返回原始 tag 名，本函数返回去 scope 去 v 前缀的版本号。
 ///
 /// ```
-/// use quanttide_devops::source::git_tag::filter_latest_version;
+/// use quanttide_devops::source::git::tag::filter_latest_version;
 ///
 /// let tags = vec!["cli/v0.2.0".into(), "cli/v0.1.0".into(), "v1.0.0".into()];
 /// assert_eq!(filter_latest_version(&tags, "cli"), Some("0.2.0".into()));
@@ -142,7 +142,7 @@ pub fn filter_latest_version(tags: &[String], scope_name: &str) -> Option<String
 /// 从 tag 列表中过滤出指定 scope 的 tag。
 ///
 /// ```
-/// use quanttide_devops::source::git_tag::filter_tags_by_scope;
+/// use quanttide_devops::source::git::tag::filter_tags_by_scope;
 ///
 /// let tags = vec!["cli/v0.1.0".into(), "studio/v0.2.0".into()];
 /// assert_eq!(filter_tags_by_scope(&tags, "cli"), vec!["cli/v0.1.0"]);

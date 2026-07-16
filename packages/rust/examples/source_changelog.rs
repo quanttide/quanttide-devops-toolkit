@@ -82,7 +82,7 @@ fn main() {
         println!("\n[C] 生成 pipeline — {}", path.display());
 
         let latest =
-            match quanttide_devops::source::git_tag::latest_version(path, "") {
+            match quanttide_devops::source::git::tag::latest_version(path, "") {
                 Ok(Some(v)) => v,
                 Ok(None) => {
                     println!("    无 tag，从头收集");

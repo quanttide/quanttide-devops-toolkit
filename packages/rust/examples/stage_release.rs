@@ -12,7 +12,7 @@
 //! ```
 
 use quanttide_devops::stage::release::{ReleaseState, ReleaseStatus};
-use quanttide_devops::source::git_tag::{latest_tag_with, latest_version_with, TagSource, TagError};
+use quanttide_devops::source::git::tag::{latest_tag_with, latest_version_with, TagSource, TagError};
 
 fn main() {
     // ── 1. 用 MockTagSource 模拟一个 monorepo 的 tag 集合 ────────
