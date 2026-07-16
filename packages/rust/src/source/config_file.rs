@@ -81,10 +81,10 @@ pub fn detect_languages(dir: &Path) -> Vec<Language> {
     if dir.join("Cargo.toml").exists() {
         result.push(Language::Rust);
     }
-    if dir.join("pyproject.toml").exists() || dir.join("requirements.txt").exists() {
-        if !result.contains(&Language::Python) {
-            result.push(Language::Python);
-        }
+    if (dir.join("pyproject.toml").exists() || dir.join("requirements.txt").exists())
+        && !result.contains(&Language::Python)
+    {
+        result.push(Language::Python);
     }
     if dir.join("go.mod").exists() {
         result.push(Language::Go);

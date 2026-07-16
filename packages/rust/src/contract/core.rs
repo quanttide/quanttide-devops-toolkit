@@ -128,7 +128,7 @@ impl Contract {
                     let sub_lang = sub_langs.into_iter().next().unwrap();
                     scopes.push(Scope {
                         name,
-                        dir: format!("{}/{}", base, &sub.file_name().unwrap().to_string_lossy()),
+                        dir: format!("{}/{}", base, sub.file_name().unwrap().to_string_lossy()),
                         language: sub_lang.clone(),
                         build_tool: sub_lang.default_build_tool(),
                         framework: String::new(),

@@ -42,19 +42,14 @@ impl From<std::io::Error> for ChangelogError {
 
 /// CHANGELOG 解析结果。封装 `parse-changelog` 提供便捷方法。
 ///
-/// 内部持有原始文本 + 解析后的有序 Map（版本号 → Release）。
+/// 内部持有所有版本号及 release notes 的完全所有权数据，
+/// 不依赖内部引用，安全无 `unsafe`。
 #[derive(Debug)]
 pub struct Changelog {
-    #[allow(dead_code)]
-    /// 原始文本，保障解析结果的引用有效性。
-    raw: String,
-    /// 解析后的版本 → Release 有序 Map。
-    ///
-    /// # Safety
-    ///
-    /// `inner` 中的 `&str` 引用指向 `self.raw` 的堆内存。
-    /// `raw` 和 `inner` 始终一起移动和释放，因此引用始终有效。
-    inner: parse_changelog::Changelog<'static>,
+    /// 版本号列表（保持文件中先后顺序）。
+    version_order: Vec<String>,
+    /// 版本号 → Release notes 映射。
+    notes: std::collections::HashMap<String, String>,
 }
 
 impl Changelog {
@@ -67,34 +62,35 @@ impl Changelog {
     /// 从字符串解析 CHANGELOG。
     #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Result<Self, ChangelogError> {
-        let raw = s.to_string();
-        // Safety: inner 的 &str 引用指向 raw。
-        // raw 和 inner 始终一起移动和释放，引用在 Changelog 存活期间始终有效。
-        let inner =
-            parse_changelog::parse(&raw).map_err(|e| ChangelogError::Parse(e.to_string()))?;
-        // SAFETY: inner 的 &str 引用指向 raw。raw 和 inner 始终一起移动和释放。
-        let inner: parse_changelog::Changelog<'static> = unsafe { std::mem::transmute(inner) };
-        Ok(Self { raw, inner })
+        let parsed =
+            parse_changelog::parse(s).map_err(|e| ChangelogError::Parse(e.to_string()))?;
+        let mut version_order = Vec::with_capacity(parsed.len());
+        let mut notes = std::collections::HashMap::with_capacity(parsed.len());
+        for (version, release) in parsed.iter() {
+            version_order.push(version.to_string());
+            notes.insert(version.to_string(), release.notes.to_string());
+        }
+        Ok(Self { version_order, notes })
     }
 
     /// 获取指定版本的 release notes（用于 GitHub Release body）。
-    pub fn release_notes<'a>(&'a self, version: &str) -> Option<&'a str> {
-        self.inner.get(version).map(|r| r.notes)
+    pub fn release_notes(&self, version: &str) -> Option<&str> {
+        self.notes.get(version).map(|s| s.as_str())
     }
 
     /// 检查指定版本是否存在于 CHANGELOG 中。
     pub fn contains_version(&self, version: &str) -> bool {
-        self.inner.contains_key(version)
+        self.notes.contains_key(version)
     }
 
     /// 获取最新发布的版本号（即文件中第一个版本）。
     pub fn latest_version(&self) -> Option<&str> {
-        self.inner.keys().next().copied()
+        self.version_order.first().map(|s| s.as_str())
     }
 
     /// 获取所有版本号列表（保持文件中先后顺序）。
     pub fn versions(&self) -> Vec<&str> {
-        self.inner.keys().copied().collect()
+        self.version_order.iter().map(|s| s.as_str()).collect()
     }
 }
 

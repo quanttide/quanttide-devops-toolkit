@@ -60,38 +60,116 @@ pub struct ReleaseState {
 }
 
 impl ReleaseState {
-    /// 构造一个发布状态快照，变更日志默认使用 `"CHANGELOG.md"`。
+    /// 创建一个 `ReleaseStateBuilder`，用链式调用替代 6 参数构造。
     ///
     /// ```
     /// use quanttide_devops::stage::release::{ReleaseState, ReleaseStatus};
     ///
-    /// let s = ReleaseState::new(
-    ///     ReleaseStatus::Pending,
-    ///     "cli",
-    ///     "src/cli",
-    ///     Some("v1.2.3".into()),
-    ///     3,
-    ///     Some(true),
-    /// );
+    /// let s = ReleaseState::builder()
+    ///     .status(ReleaseStatus::Pending)
+    ///     .scope("cli")
+    ///     .scope_path("src/cli")
+    ///     .current_version("v1.2.3")
+    ///     .pending_commits(3)
+    ///     .version_consistent(true)
+    ///     .build();
     /// assert_eq!(s.scope, "cli");
     /// assert_eq!(s.changelog, "CHANGELOG.md");
     /// ```
-    pub fn new(
-        status: ReleaseStatus,
-        scope: impl Into<String>,
-        scope_path: impl Into<String>,
-        current_version: Option<String>,
-        pending_commits: usize,
-        version_consistent: Option<bool>,
-    ) -> Self {
+    pub fn builder() -> ReleaseStateBuilder {
+        ReleaseStateBuilder::default()
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// Builder
+// ═══════════════════════════════════════════════════════════════════════
+
+/// [`ReleaseState`] 的构建器，替代多参数构造。
+#[derive(Debug)]
+pub struct ReleaseStateBuilder {
+    status: Option<ReleaseStatus>,
+    scope: Option<String>,
+    scope_path: Option<String>,
+    current_version: Option<String>,
+    pending_commits: usize,
+    version_consistent: Option<bool>,
+    changelog: String,
+}
+
+impl Default for ReleaseStateBuilder {
+    fn default() -> Self {
         Self {
-            status,
-            scope: scope.into(),
-            scope_path: scope_path.into(),
-            current_version,
-            pending_commits,
+            status: None,
+            scope: None,
+            scope_path: None,
+            current_version: None,
+            pending_commits: 0,
+            version_consistent: None,
             changelog: "CHANGELOG.md".into(),
-            version_consistent,
+        }
+    }
+}
+
+impl ReleaseStateBuilder {
+    /// **必需**：发布生命周期状态。
+    pub fn status(mut self, value: ReleaseStatus) -> Self {
+        self.status = Some(value);
+        self
+    }
+
+    /// **必需**：scope 名称。
+    pub fn scope(mut self, value: impl Into<String>) -> Self {
+        self.scope = Some(value.into());
+        self
+    }
+
+    /// **必需**：scope 相对路径。
+    pub fn scope_path(mut self, value: impl Into<String>) -> Self {
+        self.scope_path = Some(value.into());
+        self
+    }
+
+    /// 当前最新 tag 版本号。
+    pub fn current_version(mut self, value: impl Into<String>) -> Self {
+        self.current_version = Some(value.into());
+        self
+    }
+
+    /// 自最新 tag 以来的未发布提交数（默认 0）。
+    pub fn pending_commits(mut self, value: usize) -> Self {
+        self.pending_commits = value;
+        self
+    }
+
+    /// 版本一致性检查结果。
+    pub fn version_consistent(mut self, value: bool) -> Self {
+        self.version_consistent = Some(value);
+        self
+    }
+
+    /// 变更日志路径（默认 `"CHANGELOG.md"`）。
+    pub fn changelog(mut self, value: impl Into<String>) -> Self {
+        self.changelog = value.into();
+        self
+    }
+
+    /// 构建 [`ReleaseState`]。
+    ///
+    /// # Panics
+    ///
+    /// 当 `status`、`scope` 或 `scope_path` 未设置时 panic。
+    pub fn build(self) -> ReleaseState {
+        ReleaseState {
+            status: self.status.expect("ReleaseStateBuilder: status 是必需的"),
+            scope: self.scope.expect("ReleaseStateBuilder: scope 是必需的"),
+            scope_path: self
+                .scope_path
+                .expect("ReleaseStateBuilder: scope_path 是必需的"),
+            current_version: self.current_version,
+            pending_commits: self.pending_commits,
+            changelog: self.changelog,
+            version_consistent: self.version_consistent,
         }
     }
 }
@@ -235,8 +313,12 @@ mod tests {
     }
 
     #[test]
-    fn test_release_state_new() {
-        let s = ReleaseState::new(ReleaseStatus::Unreleased, "cli", "src/cli", None, 0, None);
+    fn test_release_state_builder_minimal() {
+        let s = ReleaseState::builder()
+            .status(ReleaseStatus::Unreleased)
+            .scope("cli")
+            .scope_path("src/cli")
+            .build();
         assert_eq!(s.scope, "cli");
         assert_eq!(s.scope_path, "src/cli");
         assert_eq!(s.status, ReleaseStatus::Unreleased);
@@ -244,15 +326,18 @@ mod tests {
         assert_eq!(s.pending_commits, 0);
         assert_eq!(s.changelog, "CHANGELOG.md");
         assert!(s.version_consistent.is_none());
+    }
 
-        let s = ReleaseState::new(
-            ReleaseStatus::Pending,
-            "(root)",
-            ".",
-            Some("v2.0.0".into()),
-            5,
-            Some(false),
-        );
+    #[test]
+    fn test_release_state_builder_full() {
+        let s = ReleaseState::builder()
+            .status(ReleaseStatus::Pending)
+            .scope("(root)")
+            .scope_path(".")
+            .current_version("v2.0.0")
+            .pending_commits(5)
+            .version_consistent(false)
+            .build();
         assert_eq!(s.scope, "(root)");
         assert_eq!(s.current_version.as_deref(), Some("v2.0.0"));
         assert_eq!(s.pending_commits, 5);

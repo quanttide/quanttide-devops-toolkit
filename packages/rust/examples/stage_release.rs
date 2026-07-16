@@ -80,14 +80,14 @@ fn main() {
 
     // ── 5. 添加一条版本冲突的演示 ────────────────────────────────
     println!("\n版本冲突示例:");
-    let conflict = ReleaseState::new(
-        ReleaseStatus::Inconsistent,
-        "web",
-        "src/web",
-        Some("web/v0.1.0".into()),
-        0,
-        Some(false),
-    );
+    let conflict = ReleaseState::builder()
+        .status(ReleaseStatus::Inconsistent)
+        .scope("web")
+        .scope_path("src/web")
+        .current_version("web/v0.1.0")
+        .pending_commits(0)
+        .version_consistent(false)
+        .build();
     print!("{}", conflict);
 }
 

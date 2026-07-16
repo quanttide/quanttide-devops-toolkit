@@ -1,4 +1,4 @@
-/// 集成测试：Changelog 错误格式化 + Git 日志收集。
+//! 集成测试：Changelog 错误格式化 + Git 日志收集。
 
 use std::path::Path;
 use std::process::Command;

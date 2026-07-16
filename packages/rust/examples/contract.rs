@@ -19,14 +19,22 @@ fn main() {
         .map(PathBuf::from)
         .unwrap_or_else(demo_tempdir);
 
-    // ── A. 加载契约 ────────────────────────────────────────────────
-    let contract = quanttide_devops::contract::load_or_default(&repo_path);
-    println!(
-        "[A] 契约加载完成 — {} 个 scope",
-        contract.scopes.len()
-    );
+    let contract = demo_load_contract(&repo_path);
+    demo_from_yaml();
+    let parsed = demo_parse_yaml();
+    demo_accessors_and_validate(&parsed, &repo_path);
+    demo_version_state(&contract, &repo_path);
+    demo_auto_detect(&repo_path);
+}
 
-    // scope 列表
+// ═══════════════════════════════════════════════════════════════════════
+// 演示步骤
+// ═══════════════════════════════════════════════════════════════════════
+
+/// A. 加载契约并列出 scope。
+fn demo_load_contract(repo_path: &std::path::Path) -> quanttide_devops::contract::Contract {
+    let contract = quanttide_devops::contract::load_or_default(repo_path);
+    println!("[A] 契约加载完成 — {} 个 scope", contract.scopes.len());
     println!();
     for scope in &contract.scopes {
         let langs =
@@ -40,10 +48,17 @@ fn main() {
             scope.build_tool.as_str(),
         );
     }
+    contract
+}
 
-    // ── B. 从 YAML string 构建 Contract ────────────────────────────
+/// B. 从 YAML string 解析契约。
+fn demo_from_yaml() {
     println!();
     println!("[B] 从 YAML string 解析 Contract");
+    println!("    ✓ 解析成功");
+}
+
+fn demo_parse_yaml() -> quanttide_devops::contract::Contract {
     let yaml = r#"
 stages:
   build:
@@ -80,31 +95,35 @@ scopes:
     assert_eq!(parsed.scopes.len(), 2);
     assert_eq!(parsed.scopes[0].name, "cli");
     assert_eq!(parsed.scopes[1].name, "studio");
-    println!("    ✓ 解析成功");
+    parsed
+}
 
-    // ── C. 便捷访问器 ──────────────────────────────────────────────
+/// C–D. 便捷访问器 + validate。
+fn demo_accessors_and_validate(
+    contract: &quanttide_devops::contract::Contract,
+    repo_path: &std::path::Path,
+) {
     println!();
     println!("[C] 便捷访问器");
-    let cli = &parsed.scopes[0];
+    let cli = &contract.scopes[0];
     println!(
         "    scope_release(cli).changelog       = {}",
-        parsed.scope_release(cli).changelog
+        contract.scope_release(cli).changelog
     );
     println!(
         "    scope_test_threshold(cli)        = {:.0}",
-        parsed.scope_test_threshold(cli)
+        contract.scope_test_threshold(cli)
     );
-    let resolved = parsed.resolve_language(cli, &repo_path.join(&cli.dir));
+    let resolved = contract.resolve_language(cli, &repo_path.join(&cli.dir));
     println!("    resolve_language(cli)            = {}", resolved.as_str());
-    match parsed.find_scope_by_path(&repo_path, &repo_path.join("src/cli")) {
+    match contract.find_scope_by_path(repo_path, &repo_path.join("src/cli")) {
         Some(s) => println!("    find_scope_by_path(src/cli)      = {}", s.name),
         None => println!("    find_scope_by_path(src/cli)      = (无匹配)"),
     }
 
-    // ── D. Validate ────────────────────────────────────────────────
     println!();
     println!("[D] Contract::validate — 验算 scope 目录");
-    let errors = parsed.validate(&repo_path);
+    let errors = contract.validate(repo_path);
     if errors.is_empty() {
         println!("    ✓ 所有 scope 目录存在");
     } else {
@@ -112,12 +131,17 @@ scopes:
             println!("    ✗ {}", e);
         }
     }
+}
 
-    // ── E. 版本状态 ────────────────────────────────────────────────
+/// E. 版本状态。
+fn demo_version_state(
+    contract: &quanttide_devops::contract::Contract,
+    repo_path: &std::path::Path,
+) {
     println!();
     println!("[E] 版本状态");
     for scope in &contract.scopes {
-        match quanttide_devops::contract::verify_version(&repo_path, scope) {
+        match quanttide_devops::contract::verify_version(repo_path, scope) {
             Ok(vs) => {
                 let tag = vs.tag_version.as_deref().unwrap_or("—");
                 let cfg = vs.config_version.as_deref().unwrap_or("—");
@@ -130,18 +154,19 @@ scopes:
             Err(e) => println!("    ✗ {}: {}", scope.name, e),
         }
     }
+}
 
-    // ── F. Auto-detect ─────────────────────────────────────────────
+/// F. Auto-detect 自动推测。
+fn demo_auto_detect(repo_path: &std::path::Path) {
     println!();
     println!("[F] Contract::auto_detect — 自动推测");
-    let auto = quanttide_devops::contract::Contract::auto_detect(&repo_path);
+    let auto = quanttide_devops::contract::Contract::auto_detect(repo_path);
     if auto.scopes.is_empty() {
         println!("    未检测到任何 scope");
     } else {
         for scope in &auto.scopes {
-            let langs = quanttide_devops::source::config_file::detect_languages(
-                &repo_path.join(&scope.dir),
-            );
+            let langs =
+                quanttide_devops::source::config_file::detect_languages(&repo_path.join(&scope.dir));
             let lang_label = langs.first().map(|l| l.as_str()).unwrap_or("—");
             println!(
                 "    {:<12} dir: {:<24} lang: {:<12} tool: {}",
@@ -153,6 +178,10 @@ scopes:
         }
     }
 }
+
+// ═══════════════════════════════════════════════════════════════════════
+// 辅助
+// ═══════════════════════════════════════════════════════════════════════
 
 /// 生成临时目录演示 auto_detect 和契约加载。
 fn demo_tempdir() -> PathBuf {
@@ -172,8 +201,11 @@ fn demo_tempdir() -> PathBuf {
     .expect("写入 pyproject.toml 失败");
 
     std::fs::create_dir_all(path.join("src/cli")).expect("创建 src/cli 失败");
-    std::fs::write(path.join("src/cli/Cargo.toml"), "[package]\nname = \"cli\"\nversion = \"0.1.0\"\n")
-        .expect("写入 src/cli/Cargo.toml 失败");
+    std::fs::write(
+        path.join("src/cli/Cargo.toml"),
+        "[package]\nname = \"cli\"\nversion = \"0.1.0\"\n",
+    )
+    .expect("写入 src/cli/Cargo.toml 失败");
 
     std::fs::create_dir_all(path.join("src/studio")).expect("创建 src/studio 失败");
     std::fs::write(
