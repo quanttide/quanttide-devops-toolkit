@@ -35,7 +35,7 @@
 
 ### 超长文件
 
-- [x] `source/roadmap.rs` (894→472 行) — 测试提取到独立文件 `roadmap_tests.rs`
+- [x] `source/roadmap.rs` — 拆分为 `roadmap/mod.rs`（类型+访问器） + `parse.rs`（解析） + `validate.rs`（校验），各 ~300 行，测试分散内联
 
 ### CI
 
