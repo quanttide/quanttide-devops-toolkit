@@ -41,13 +41,17 @@ impl Contract {
 
     /// 根据路径查找匹配的 scope（最长前缀匹配）。
     ///
+    /// `repo_path` 是仓库根目录，`subpath` 可以是绝对路径或相对路径。
+    /// 若 `subpath` 是绝对路径，会自动剥离 `repo_path` 前缀。
+    ///
     /// 例如当前在 `src/cli/sub` 时，`cli` scope（dir: `src/cli`）
     /// 比 root scope（dir: `.`）优先级高。
-    pub fn find_scope_by_path(&self, current_dir: &Path) -> Option<&Scope> {
-        let current_str = current_dir.to_string_lossy();
+    pub fn find_scope_by_path(&self, repo_path: &Path, subpath: &Path) -> Option<&Scope> {
+        let relative = subpath.strip_prefix(repo_path).unwrap_or(subpath);
+        let relative_str = relative.to_string_lossy();
         self.scopes
             .iter()
-            .filter(|s| current_str.starts_with(&s.dir) || s.dir == ".")
+            .filter(|s| relative_str.starts_with(&s.dir) || s.dir == ".")
             .max_by_key(|s| s.dir.len())
     }
 
@@ -420,18 +424,19 @@ scopes:
     dir: src/web
 "#,
         );
+        let repo = std::path::Path::new("/repo");
         assert_eq!(
-            c.find_scope_by_path(std::path::Path::new("src/cli/sub"))
+            c.find_scope_by_path(repo, std::path::Path::new("src/cli/sub"))
                 .map(|s| s.name.as_str()),
             Some("cli")
         );
         assert_eq!(
-            c.find_scope_by_path(std::path::Path::new("src/web"))
+            c.find_scope_by_path(repo, std::path::Path::new("src/web"))
                 .map(|s| s.name.as_str()),
             Some("web")
         );
         assert_eq!(
-            c.find_scope_by_path(std::path::Path::new("unknown"))
+            c.find_scope_by_path(repo, std::path::Path::new("unknown"))
                 .map(|s| s.name.as_str()),
             Some("root")
         );

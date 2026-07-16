@@ -96,7 +96,7 @@ scopes:
     );
     let resolved = parsed.resolve_language(cli, &repo_path.join(&cli.dir));
     println!("    resolve_language(cli)            = {}", resolved.as_str());
-    match parsed.find_scope_by_path(&repo_path.join("src/cli")) {
+    match parsed.find_scope_by_path(&repo_path, &repo_path.join("src/cli")) {
         Some(s) => println!("    find_scope_by_path(src/cli)      = {}", s.name),
         None => println!("    find_scope_by_path(src/cli)      = (无匹配)"),
     }
