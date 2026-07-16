@@ -1,3 +1,7 @@
+//! 契约模块：contract.yaml 的加载、解析与状态查询。
+//!
+//! 子模块覆盖核心数据结构、平台、来源、scope、版本和阶段配置。
+
 pub mod core;
 /// 契约模型四维架构：Stages / Platforms / Sources / Scopes。
 ///

@@ -1,3 +1,5 @@
+//! 构建阶段：CI 运行状态和构建系统信息。
+
 /// CI 运行记录。
 #[derive(Debug, PartialEq)]
 pub struct CiRun {

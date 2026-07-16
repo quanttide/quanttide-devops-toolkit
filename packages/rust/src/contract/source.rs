@@ -1,3 +1,5 @@
+//! 来源配置：版本号来源的枚举与自动检测。
+
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 

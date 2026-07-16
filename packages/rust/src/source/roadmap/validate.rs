@@ -1,3 +1,5 @@
+//! ROADMAP 格式验证：版本号格式、分类大小写、checkbox 格式。
+
 use crate::source::roadmap::{Roadmap, RoadmapIssue};
 
 // ═══════════════════════════════════════════════════════════════════════

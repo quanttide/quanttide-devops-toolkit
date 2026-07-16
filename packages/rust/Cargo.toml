@@ -15,6 +15,7 @@ semver = "1"
 git2 = { version = "0.19", features = ["vendored-libgit2"] }
 parse-changelog = { version = "0.6", default-features = false }
 jiff = "0.2"
+thiserror = "2"
 clap = { version = "4", features = ["derive"], optional = true }
 
 [features]

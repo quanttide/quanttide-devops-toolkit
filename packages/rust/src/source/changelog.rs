@@ -1,3 +1,7 @@
+//! CHANGELOG 解析与追加写入。
+//!
+//! 封装 `parse-changelog`，提供版本列举、release notes 提取、条目追加。
+
 use std::path::Path;
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -5,35 +9,20 @@ use std::path::Path;
 // ═══════════════════════════════════════════════════════════════════════
 
 /// CHANGELOG 操作错误。
-#[derive(Debug)]
+#[derive(thiserror::Error, Debug)]
 pub enum ChangelogError {
     /// 文件读取失败。
-    Io(std::io::Error),
+    #[error("读取 CHANGELOG 失败: {0}")]
+    Io(#[from] std::io::Error),
     /// 文件写入失败。
+    #[error("文件写入失败: {0}")]
     File(String),
     /// git 命令失败。
+    #[error("git 命令失败: {0}")]
     Git(String),
     /// 解析失败。
+    #[error("解析 CHANGELOG 失败: {0}")]
     Parse(String),
-}
-
-impl std::fmt::Display for ChangelogError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Io(e) => write!(f, "读取 CHANGELOG 失败: {}", e),
-            Self::File(e) => write!(f, "文件写入失败: {}", e),
-            Self::Git(e) => write!(f, "git 命令失败: {}", e),
-            Self::Parse(e) => write!(f, "解析 CHANGELOG 失败: {}", e),
-        }
-    }
-}
-
-impl std::error::Error for ChangelogError {}
-
-impl From<std::io::Error> for ChangelogError {
-    fn from(e: std::io::Error) -> Self {
-        Self::Io(e)
-    }
 }
 
 // ═══════════════════════════════════════════════════════════════════════

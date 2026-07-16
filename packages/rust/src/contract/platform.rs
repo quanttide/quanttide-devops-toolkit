@@ -1,3 +1,5 @@
+//! 平台配置：源码管理、CI/CD、制品仓库的枚举与解析。
+
 use serde::{Deserialize, Serialize};
 use std::fmt;
 

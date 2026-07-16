@@ -1,3 +1,5 @@
+//! Scope 配置：语言、构建工具、注册表类型的枚举与反序列化。
+
 use serde::de::{Deserializer, MapAccess, Visitor};
 use serde::{Deserialize, Serialize};
 use std::fmt;

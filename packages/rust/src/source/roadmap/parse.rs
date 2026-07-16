@@ -1,3 +1,5 @@
+//! ROADMAP 解析实现：行分类、版本区块提取、格式校验。
+
 use std::path::Path;
 
 use crate::source::roadmap::{

@@ -25,24 +25,15 @@ use std::path::{Path, PathBuf};
 // ═══════════════════════════════════════════════════════════════════════
 
 /// Git tag 读取操作错误。
-#[derive(Debug)]
+#[derive(thiserror::Error, Debug)]
 pub enum TagError {
     /// 仓库打开失败。
+    #[error("无法打开仓库: {0}")]
     RepoOpen(String),
     /// gix 内部错误。
+    #[error("gix 错误: {0}")]
     Gix(String),
 }
-
-impl std::fmt::Display for TagError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::RepoOpen(p) => write!(f, "无法打开仓库: {}", p),
-            Self::Gix(e) => write!(f, "gix 错误: {}", e),
-        }
-    }
-}
-
-impl std::error::Error for TagError {}
 
 // ═══════════════════════════════════════════════════════════════════════
 // TagSource trait

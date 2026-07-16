@@ -1,3 +1,5 @@
+//! 版本一致性检查：对比 Git tag、配置文件、契约声明的版本号。
+
 use std::path::Path;
 
 use crate::contract::Scope;

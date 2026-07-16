@@ -1,3 +1,5 @@
+//! 测试阶段：测试覆盖率、函数覆盖率和错误变体覆盖率的审计。
+
 /// 测试结果汇总。
 #[derive(Debug, Default, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct TestSummary {

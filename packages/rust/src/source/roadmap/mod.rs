@@ -1,3 +1,7 @@
+//! ROADMAP 解析：从 `ROADMAP.md` 提取版本规划进度。
+//!
+//! 遵循 Keep a Changelog 变体格式，支持解析、进度统计和格式验证。
+
 pub(crate) mod parse;
 pub(crate) mod validate;
 
@@ -6,29 +10,14 @@ pub(crate) mod validate;
 // ═══════════════════════════════════════════════════════════════════════
 
 /// ROADMAP 操作错误。
-#[derive(Debug)]
+#[derive(thiserror::Error, Debug)]
 pub enum RoadmapError {
     /// 文件读取失败。
-    Io(std::io::Error),
+    #[error("读取 ROADMAP 失败: {0}")]
+    Io(#[from] std::io::Error),
     /// 解析失败（格式不符合预期）。
+    #[error("解析 ROADMAP 失败: {0}")]
     Parse(String),
-}
-
-impl std::fmt::Display for RoadmapError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Io(e) => write!(f, "读取 ROADMAP 失败: {}", e),
-            Self::Parse(e) => write!(f, "解析 ROADMAP 失败: {}", e),
-        }
-    }
-}
-
-impl std::error::Error for RoadmapError {}
-
-impl From<std::io::Error> for RoadmapError {
-    fn from(e: std::io::Error) -> Self {
-        Self::Io(e)
-    }
 }
 
 // ═══════════════════════════════════════════════════════════════════════

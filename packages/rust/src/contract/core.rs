@@ -1,3 +1,8 @@
+//! 契约核心：加载、解析、查询 contract.yaml。
+//!
+//! 提供 `Contract` 类型的加载 (`load`, `load_or_default`)、
+//! scope 查找 (`find_scope_by_path`) 和语言解析 (`resolve_language`)。
+
 use super::{platform::*, scope::*, source::*, stage::*};
 use serde::{Deserialize, Serialize};
 use std::path::Path;
