@@ -181,6 +181,41 @@ mod tests {
     }
 
     #[test]
+    fn test_aggregate_from_submodules_all_variants() {
+        let sm = |s: SubmoduleStatus| Submodule {
+            name: "test".into(),
+            path: "test".into(),
+            url: "".into(),
+            tracked_branch: "main".into(),
+            parent_pointer: gix::ObjectId::null(gix::hash::Kind::Sha1),
+            local_head: gix::ObjectId::null(gix::hash::Kind::Sha1),
+            remote_head: gix::ObjectId::null(gix::hash::Kind::Sha1),
+            status: s,
+            ahead_count: 0,
+            behind_count: 0,
+            remote_unreachable: false,
+        };
+        let subs = vec![
+            sm(SubmoduleStatus::Clean),
+            sm(SubmoduleStatus::AheadOfParent),
+            sm(SubmoduleStatus::BehindRemote),
+            sm(SubmoduleStatus::Detached),
+            sm(SubmoduleStatus::Dirty),
+            sm(SubmoduleStatus::Orphaned),
+            sm(SubmoduleStatus::Uninitialized),
+        ];
+        let agg = AggregateStatus::from_submodules(&subs);
+        assert_eq!(agg.total, 7);
+        assert_eq!(agg.clean, 1);
+        assert_eq!(agg.ahead_of_parent, 1);
+        assert_eq!(agg.behind_remote, 1);
+        assert_eq!(agg.detached, 1);
+        assert_eq!(agg.dirty, 1);
+        assert_eq!(agg.orphaned, 1);
+        assert_eq!(agg.uninitialized, 1);
+    }
+
+    #[test]
     fn test_describe_issue_all_variants() {
         for variant in &[
             SubmoduleStatus::AheadOfParent,
