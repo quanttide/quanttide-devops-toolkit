@@ -35,7 +35,7 @@
 
 ### 超长文件
 
-- [ ] `source/roadmap.rs` (894 行) — 内部结构已重构（函数拆分、枚举分类），考虑将测试移到 `tests/` 集成测试文件
+- [x] `source/roadmap.rs` (894→472 行) — 测试提取到独立文件 `roadmap_tests.rs`
 
 ### CI
 
