@@ -1,4 +1,4 @@
-# 量潮DevOps工具箱
+# 量潮DevOps标准库
 
 QuantTide DevOps Toolkit — Monorepo
 

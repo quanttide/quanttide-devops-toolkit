@@ -1,6 +1,6 @@
 # `quanttide-devops`
 
-QuantTide DevOps toolkit — 契约驱动的 DevOps 治理工具库。
+QuantTide DevOps toolkit — 契约驱动的 DevOps 治理标准库。
 
 ## 安装
 
